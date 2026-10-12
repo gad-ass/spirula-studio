@@ -802,19 +802,19 @@ SS_MSG(stage_judging_photos,
     TR("Karelerin keskinliği ölçülüyor"));
 
 SS_MSG(skipped_discarded,
-    EN("Skipped frames not kept: {0} deleted"),
-    JA("除外したフレームは残しません: {0} 枚を削除"),
-    ZH_HANS("未保留被跳过的帧：已删除 {0} 个"),
-    ZH_HANT("未保留被略過的影格：已刪除 {0} 個"),
-    KO("건너뛴 프레임을 보관하지 않음: {0}장 삭제"),
-    DE("Übersprungene Bilder nicht aufbewahrt: {0} gelöscht"),
-    FR("Images ignorées non conservées : {0} supprimées"),
-    ES("Fotogramas omitidos no conservados: {0} eliminados"),
-    PT("Quadros ignorados não guardados: {0} apagados"),
-    IT("Fotogrammi saltati non conservati: {0} eliminati"),
-    NL("Overgeslagen beelden niet bewaard: {0} verwijderd"),
-    RU("Пропущенные кадры не сохранены: удалено {0}"),
-    TR("Atlanan kareler saklanmadı: {0} silindi"));
+    EN("Skipped frames not kept, deleted: {0}"),
+    JA("除外したフレームは残しません。削除: {0}"),
+    ZH_HANS("未保留被跳过的帧，已删除：{0}"),
+    ZH_HANT("未保留被略過的影格，已刪除：{0}"),
+    KO("건너뛴 프레임을 보관하지 않음, 삭제: {0}"),
+    DE("Übersprungene Bilder nicht aufbewahrt, gelöscht: {0}"),
+    FR("Images ignorées non conservées, supprimées : {0}"),
+    ES("Fotogramas omitidos no conservados, eliminados: {0}"),
+    PT("Quadros ignorados não guardados, apagados: {0}"),
+    IT("Fotogrammi saltati non conservati, eliminati: {0}"),
+    NL("Overgeslagen beelden niet bewaard, verwijderd: {0}"),
+    RU("Пропущенные кадры не сохранены, удалено: {0}"),
+    TR("Atlanan kareler saklanmadı, silinen: {0}"));
 
 SS_MSG(plan_frames_sorted,
     EN("the blur rule is applied to the frames already there: the ones "

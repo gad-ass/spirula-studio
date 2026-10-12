@@ -1044,19 +1044,19 @@ SS_MSG(sharpness_view_help,
        "kaydırırken Ctrl tuşunu basılı tutun."));
 
 SS_MSG(sharpness_counts,
-    EN("{0}: {1} kept, {2} blurry, {3} too similar"),
+    EN("{0}: kept {1}, blurry {2}, too similar {3}"),
     JA("{0}: 残す {1}、ぶれ {2}、似すぎ {3}"),
     ZH_HANS("{0}：保留 {1}，模糊 {2}，过于相似 {3}"),
     ZH_HANT("{0}：保留 {1}，模糊 {2}，過於相似 {3}"),
     KO("{0}: 유지 {1}, 흐림 {2}, 너무 비슷함 {3}"),
-    DE("{0}: {1} behalten, {2} unscharf, {3} zu ähnlich"),
-    FR("{0} : {1} gardées, {2} floues, {3} trop semblables"),
-    ES("{0}: {1} conservados, {2} borrosos, {3} demasiado parecidos"),
-    PT("{0}: {1} mantidos, {2} borrados, {3} parecidos demais"),
-    IT("{0}: {1} tenuti, {2} sfocati, {3} troppo simili"),
-    NL("{0}: {1} behouden, {2} onscherp, {3} te gelijkend"),
+    DE("{0}: behalten {1}, unscharf {2}, zu ähnlich {3}"),
+    FR("{0} : gardées {1}, floues {2}, trop semblables {3}"),
+    ES("{0}: conservados {1}, borrosos {2}, demasiado parecidos {3}"),
+    PT("{0}: mantidos {1}, borrados {2}, parecidos demais {3}"),
+    IT("{0}: tenuti {1}, sfocati {2}, troppo simili {3}"),
+    NL("{0}: behouden {1}, onscherp {2}, te gelijkend {3}"),
     RU("{0}: оставлено {1}, размытых {2}, слишком похожих {3}"),
-    TR("{0}: {1} tutuldu, {2} bulanık, {3} fazla benzer"));
+    TR("{0}: tutulan {1}, bulanık {2}, fazla benzer {3}"));
 
 SS_MSG(pick_kept,
     EN("Frame {0}, kept: blurred about {1} px"),
@@ -1089,31 +1089,32 @@ SS_MSG(pick_blurry,
     TR("Kare {0}, bulanık olduğu için atlandı: yaklaşık {1} px bulanık"));
 
 SS_MSG(pick_similar,
-    EN("Frame {0}, skipped: only {1} of 64 fingerprint bits differ from "
-       "the last kept frame"),
-    JA("フレーム {0}、除外: 直前に残したフレームと指紋 64 ビット中 "
-       "{1} ビットしか違いません"),
-    ZH_HANS("帧 {0}，跳过：与上一个保留帧相比，64 位指纹中只有 {1} 位不同"),
-    ZH_HANT("影格 {0}，略過：與上一個保留的影格相比，64 位元指紋中只有 {1}"
-            " 位元不同"),
-    KO("프레임 {0}, 건너뜀: 마지막으로 남긴 프레임과 지문 64비트 "
-       "중 {1}비트만 다릅니다"),
-    DE("Bild {0}, übersprungen: nur {1} von 64 Bits des Fingerabdrucks "
-       "unterscheiden sich vom zuletzt behaltenen Bild"),
-    FR("Image {0}, ignorée : seuls {1} des 64 bits de l’empreinte "
-       "diffèrent de la dernière image gardée"),
-    ES("Fotograma {0}, omitido: solo {1} de los 64 bits de la huella "
-       "difieren del último fotograma conservado"),
-    PT("Quadro {0}, ignorado: só {1} dos 64 bits da impressão digital "
-       "diferem do último quadro mantido"),
-    IT("Fotogramma {0}, saltato: solo {1} dei 64 bit dell’impronta "
-       "differiscono dall’ultimo fotogramma tenuto"),
-    NL("Beeld {0}, overgeslagen: slechts {1} van de 64 vingerafdrukbits "
-       "verschillen van het laatst behouden beeld"),
-    RU("Кадр {0}, пропущен: от последнего оставленного кадра отличаются "
-       "только {1} из 64 бит отпечатка"),
-    TR("Kare {0}, atlandı: 64 parmak izi bitinden yalnızca {1} tanesi son "
-       "tutulan kareden farklı"));
+    EN("Frame {0}, skipped as too similar to the last kept frame "
+       "(fingerprint bits that differ, of 64: {1})"),
+    JA("フレーム {0}、似すぎのため除外 (直前に残したフレームと違う指紋ビッ"
+       "ト、64 中: {1})"),
+    ZH_HANS("帧 {0}，过于相似，跳过（与上一个保留帧不同的指纹位，64 位中："
+            "{1}）"),
+    ZH_HANT("影格 {0}，過於相似，略過（與上一個保留的影格不同的指紋位元，64 位"
+            "元中：{1}）"),
+    KO("프레임 {0}, 너무 비슷해 건너뜀 (마지막으로 남긴 프레임과 다"
+       "른 지문 비트, 64비트 중: {1})"),
+    DE("Bild {0}, als zu ähnlich übersprungen (Bits des Fingerabdrucks, "
+       "die sich vom zuletzt behaltenen Bild unterscheiden, von 64: {1})"),
+    FR("Image {0}, ignorée car trop semblable à la dernière image gardée "
+       "(bits de l’empreinte qui diffèrent, sur 64 : {1})"),
+    ES("Fotograma {0}, omitido por parecerse demasiado al último "
+       "conservado (bits de la huella que difieren, de 64: {1})"),
+    PT("Quadro {0}, ignorado por ser parecido demais com o último mantido "
+       "(bits da impressão digital que diferem, de 64: {1})"),
+    IT("Fotogramma {0}, saltato perché troppo simile all’ultimo tenuto "
+       "(bit dell’impronta che differiscono, su 64: {1})"),
+    NL("Beeld {0}, overgeslagen als te gelijkend op het laatst behouden "
+       "beeld (vingerafdrukbits die verschillen, van 64: {1})"),
+    RU("Кадр {0}, пропущен как слишком похожий на последний оставленный "
+       "(отличается бит отпечатка, из 64: {1})"),
+    TR("Kare {0}, son tutulan kareye fazla benzediği için atlandı (farklı "
+       "parmak izi biti, 64 bitten: {1})"));
 
 SS_MSG(pick_unmeasured,
     EN("Frame {0}: its blur was not measured"),
