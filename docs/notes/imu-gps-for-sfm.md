@@ -283,6 +283,18 @@ seen either.
 `yXZ`, or `yxz` when `kfix`'s `LENS_INDEX` starts with 1; neither is applied,
 for the reason `offset_v3` is not (section 5.1).
 
+**Gyro bias.** The counts are not bias-corrected. A constant rotation fitted
+between the gyro's and the poses' relative rotations over 197 consecutive
+frames of one lens (0.53 s apart, 9.4 deg mean) leaves a 1.80 deg median
+residual; fitting a constant bias with it gives (2.1, 2.6, -1.0) deg/s and
+0.20 deg. No clock offset from -80 to +80 ms does better than 1.80, and the
+`PTS` table and index over frame rate give the same numbers, so it is not
+timing. `SensorPriors.h` budgets 0.03 deg/s, so on this clip the calibration
+before mapping is refused ("the gyro and the poses disagree") and no rotation
+prior reaches verification or registration. The gauge fit still runs: up over
+398 frames with the votes agreeing to 2.35 deg, accelerometer scale at 2.2 per
+cent, gyro pairs to 2.71 deg where an X5 gives 0.43.
+
 **Not read:** `LENS` (a 534-character hex string, the two lenses'
 calibration), `EXP` (per frame, a u32 time in ms and a u32 shutter in
 microseconds), `ISP` and `FRAME_ISP`, and the `GPS` / `GPSX` logs ExifTool
