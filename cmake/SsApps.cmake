@@ -565,6 +565,7 @@ if(SS_BUILD_GUI)
         ${SS_SRC}/app/gui/DatasetPrep.cpp
         ${SS_SRC}/app/gui/HeifPhoto.cpp
         ${SS_SRC}/app/gui/FrameSelect.cpp
+        ${SS_SRC}/app/gui/PickSheet.cpp
         ${SS_SRC}/app/FrameSharpness.cpp
         ${SS_SRC}/app/FfmpegVideo.cpp
         ${SS_SRC}/app/gui/PrepProgress.cpp
@@ -589,6 +590,7 @@ if(SS_BUILD_GUI)
         ${SS_SRC}/app/gui/DatasetPrep.cpp
         ${SS_SRC}/app/gui/HeifPhoto.cpp
         ${SS_SRC}/app/gui/FrameSelect.cpp
+        ${SS_SRC}/app/gui/PickSheet.cpp
         ${SS_SRC}/app/FrameSharpness.cpp
         ${SS_SRC}/app/FfmpegVideo.cpp
         ${SS_SRC}/app/gui/PrepProgress.cpp
