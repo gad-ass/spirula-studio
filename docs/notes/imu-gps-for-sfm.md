@@ -291,9 +291,13 @@ residual; fitting a constant bias with it gives (2.1, 2.6, -1.0) deg/s and
 `PTS` table and index over frame rate give the same numbers, so it is not
 timing. `SensorPriors.h` budgets 0.03 deg/s, so on this clip the calibration
 before mapping is refused ("the gyro and the poses disagree") and no rotation
-prior reaches verification or registration. The gauge fit still runs: up over
-398 frames with the votes agreeing to 2.35 deg, accelerometer scale at 2.2 per
-cent, gyro pairs to 2.71 deg where an X5 gives 0.43.
+prior reaches verification or registration. At 2 fps the gauge fit still
+runs: up over 398 frames with the votes agreeing to 2.35 deg, accelerometer
+scale at 2.2 per cent, gyro pairs to 2.71 deg where an X5 gives 0.43. At 1 fps
+the bias has twice as long to act between frames and the gauge's own
+calibration is refused as well, so the model gets no up and no scale from its
+sensors; the reconstruction is the one a run without them builds (210 of 212
+images either way).
 
 **Not read:** `LENS` (a 534-character hex string, the two lenses'
 calibration), `EXP` (per frame, a u32 time in ms and a u32 shutter in
