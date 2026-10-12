@@ -299,6 +299,15 @@ calibration is refused as well, so the model gets no up and no scale from its
 sensors; the reconstruction is the one a run without them builds (210 of 212
 images either way).
 
+What the gauge is worth where it runs, on frames cut from the clip with ffmpeg
+(no masks), at 3 fps (662 images) and 4 fps (882): 658 and 876 register, and
+the two models agree on the room. The largest plane in the points is level to
+0.5 and 0.6 deg, the best wall at 4 fps is 0.5 deg off plumb, floor to ceiling
+is 2.40 m in both and the camera's median height 1.30 and 1.29 m, which is
+where the operator's hands hold it in the first frame. With `--sensor-gauge
+none` the 3 fps model is levelled on a plane that is not the floor, 107 deg
+from the IMU's up.
+
 **Not read:** `LENS` (a 534-character hex string, the two lenses'
 calibration), `EXP` (per frame, a u32 time in ms and a u32 shutter in
 microseconds), `ISP` and `FRAME_ISP`, and the `GPS` / `GPSX` logs ExifTool
