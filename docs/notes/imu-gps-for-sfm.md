@@ -32,6 +32,8 @@ on. Skip it if you know what a gyro bias is.
 - **DJI Osmo 360 `.OSV` files carry a 1 kHz fused attitude quaternion and one
   accelerometer reading per frame**, plus the lens intrinsics. No raw gyro is
   written and there is no GPS.
+- **A Kandao QooCam 3 Ultra `.mp4` carries a 1 kHz gyro+accelerometer log**
+  and a timestamp per frame on the same clock (section 2.4, one clip).
 - The three makers put the sensor axes in three different frames, and GoPro
   puts two of its own streams in different frames from a third. None of them
   documents the rotation from the IMU to the lens. That rotation is the one
@@ -241,11 +243,65 @@ the radial curve (focal free) out to the inscribed circle: at worst 1.97 px
 A lens folder gets it as a #119 params override only when no setting a
 person gave covers it; the run prints which, and why not.
 
-### 2.4 What the reader does with all this
+### 2.4 Kandao QooCam 3 Ultra (`.mp4`)
+
+Added 2026-10-12, from one 106 s handheld clip (unstitched 3840x7680, firmware
+V1.1.2.15).
+
+| stream | rate | span | notes |
+|---|---|---|---|
+| gyro | 1000 Hz | starts 2.0 s before the first frame, ends 0.7 s after the last | raw int16 at 2000 deg/s full scale |
+| accel | 1000 Hz | same record | raw int16 at 16 g full scale; norm median 9.77 |
+| frame times | per frame | | `PTS`, microseconds on the IMU's clock |
+| GPS | none in this clip | | `GPS_CAPTIME` is 0 and no `GPS` field is written |
+
+Two top-level boxes follow `moov`: `kfix` (what holds for the clip: model,
+serial, firmware, exposure settings) and `kvar` (what varies: the logs). Both
+are a little-endian u32 field count, then per field a 32-byte name, an 8-byte
+type (`CHAR`, `U8`, `U32`, `U64`, `DOUBLE`, ...), a u32 element count and the
+values. A log is one `U8` field holding its records. No track refers to either
+box, so ffprobe and the demuxer never see them, and a file that was re-muxed
+by something else can be expected to lose them as an `.insv` loses its trailer
+(not tried).
+
+`IMU` is 20-byte records: a u64 timestamp, three int16 of gyro, three of
+accelerometer. The ranges are in `kvar`'s `INFO` string (`V_G_RANGE=2000
+V_A_RANGE=16 V_IMU_F=6 V_IMU_MODEL=sh3001`), and the reader scales by range
+over 32768. Two checks on that: the accelerometer norm comes out at 9.77
+m/s^2, and the gyro's rotation angle between consecutive frames of an existing
+reconstruction of the clip (186 pairs per lens) is 1.016 of the poses' at the
+median. telemetry-parser divides the gyro counts by 1000 and calls the result
+rad/s, which is 6 per cent smaller and gives 0.953 on the same pairs.
+
+**Time:** every record is 1000 apart with no gap, and `PTS` holds one stamp
+per frame on the same clock (39983 apart at 25.01 fps), so IMU time relative
+to the first frame is a subtraction. `PTS_UNIT` is 1 here; ExifTool lists 0 as
+milliseconds and 2 as nanoseconds, which the reader honours without having
+seen either.
+
+**Frame:** the IMU's own. telemetry-parser gives the 3 Ultra the orientation
+`yXZ`, or `yxz` when `kfix`'s `LENS_INDEX` starts with 1; neither is applied,
+for the reason `offset_v3` is not (section 5.1).
+
+**Not read:** `LENS` (a 534-character hex string, the two lenses'
+calibration), `EXP` (per frame, a u32 time in ms and a u32 shutter in
+microseconds), `ISP` and `FRAME_ISP`, and the `GPS` / `GPSX` logs ExifTool
+decodes (20-, 28- or 36-byte records): the clip here was shot with no fix, so
+there is nothing to check a GPS reader against, and a file that has such a log
+gets a note saying it was skipped. ExifTool also mentions an optional
+magnetometer triple after the accelerometer; `V_IMU_F` is 6 here, and a file
+that says anything else is left unread rather than read at a guessed stride.
+
+**Other models.** telemetry-parser reads the same two boxes and the same
+20-byte record for the QooCam EGO and the QooCam 3, and the `INFO` string its
+source quotes carries `V_A_RANGE=4`, so the range does differ between
+cameras. No file from either was read here.
+
+### 2.5 What the reader does with all this
 
 `telemetry_read` picks the carrier by content, never by extension: the
 Insta360 magic at the end of the file, else an MP4 whose sample table has a
-`gpmd`, `camm` or `djmd` entry. CAMM (Google's camera-motion track, what a
+`gpmd`, `camm` or `djmd` entry, else a top-level `kvar` box. CAMM (Google's camera-motion track, what a
 phone app such as Insta360's own or Google's Street View writes) is
 implemented from the spec and covered by the synthetic test, but no file here
 uses it. Every reading comes out in SI units with a time in seconds from the
@@ -268,7 +324,7 @@ than whether they are precise:
 
 `imu_usable` and `gps_usable` are the summary; the warnings say why not.
 
-### 2.5 Looking at it
+### 2.6 Looking at it
 
 `viewer/telemetry.html` is a browser page over the same reader (compiled to
 its own WASM module), for when the text report is not enough: drop files or
