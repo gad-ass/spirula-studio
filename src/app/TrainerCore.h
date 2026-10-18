@@ -105,7 +105,9 @@ struct SeedSplats {
     std::vector<float> scales;       // [cap, 3]  (log)
     std::vector<float> opacities;    // [cap, 1]  (logit)
     std::vector<float> features_dc;  // [cap, 3]
-    std::vector<float> features_sh;  // [cap, dim_sh-1, 3]  (zeros)
+    // [cap, K, 3], K = ColorBasis{sh_degree, sb_lobes}.coeffs(): zero bands,
+    // then lobes seeded by core/SphericalBeta.h.
+    std::vector<float> features_sh;
 };
 
 SeedSplats seed_splats(const ColmapPoints3D& pts, const TrainConfig& cfg,
@@ -181,6 +183,11 @@ struct TrainerProgress {
     double step_latency = 0.0;
     int64_t num_splats = 0;
     std::map<std::string, float> losses;
+};
+
+struct EvalProgress {
+    int64_t completed = 0;
+    int64_t total = 0;
 };
 
 struct TrainerCallbacks {
@@ -294,7 +301,7 @@ public:
     // Reports l1/psnr/ssim and the cc_ variants of each (computed on the
     // colour-corrected render). LPIPS is not computed here -- pass
     // --save-eval-images and run reference/python/eval_lpips.py over the PNGs.
-    void eval();
+    void eval(const std::function<void(const EvalProgress&)>& on_progress = {});
 
     // The seeds setup_engine() hands the engine, from the point cloud and/or
     // cfg.init_ply.
