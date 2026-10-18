@@ -607,6 +607,9 @@ StepFields frames_fields(const PrepJob& job) {
         const bool every = every_frame(job, in);
         rate = rate || !every;
         add(f, "fps", scope, every ? "every" : num(input_fps(job, in)));
+        if (in.clipped())
+            add(f, "clip", scope,
+                num(in.clip_start) + "-" + (in.clip_end > 0.0 ? num(in.clip_end) : "end"));
         // The colours are baked into the frames, so another LUT is other frames.
         if (const std::string lut = input_lut(job, in); !lut.empty())
             add(f, "lut", scope, app::is_builtin_lut(lut) ? lut : norm_path(lut));
@@ -780,6 +783,22 @@ void verify_dense_reuse(DatasetPlan& plan, const std::string& dataset, const std
     if (!spirula::dense::artifact_inputs_verified(dataset,check)) {
         step.act = Act::Redo; step.why = Why::Stale; step.ask = false;
     }
+}
+
+// A record from before pairing followed the surface holds a preset's old neighbour and
+// reference counts; read through the same migration as saved settings, its cloud stays current.
+StepFields migrated_dense_record(StepFields fields) {
+    spirula::dense::DenseConfig config;
+    for (const auto& field : fields)
+        try { spirula::dense::assign_config_field(config, field.key, json_parse(field.value)); }
+        catch (const std::exception&) {}
+    if (!config.migrate_pairing()) return fields;
+    auto value = [](int number) { JsonWriter writer; json_write(writer, json_parse(json_field::emit(number))); return writer.str(); };
+    for (auto& field : fields) {
+        if (field.key == "neighbors") field.value = value(config.pairs.neighbors);
+        if (field.key == "reference_coverage") field.value = value(config.pairs.reference_coverage);
+    }
+    return fields;
 }
 
 StepFields dense_fields(const DenseJob& job) {
@@ -1012,7 +1031,7 @@ DatasetPlan plan_dataset(const PlanJob& job, const WorkspaceState& ws,
     else if (req.redo_dense || dc.rebuild) set(dense, Act::Redo, Why::Requested);
     else if (!rd.present) set(dense, Act::Run, Why::Unrecorded);
     else if (rd.frames_id != rf.id || rd.model_id != rr.id || (dense_masks && rd.masks_id != rm.id)) set(dense, Act::Redo, Why::Stale);
-    else compare(dense, rd, diff(rd.fields, dense_fields(job.dense)));
+    else compare(dense, rd, diff(migrated_dense_record(rd.fields), dense_fields(job.dense)));
 
     StepPlan& g = p[Step::Geometry];
     if (fixed(Step::Geometry)) {
@@ -1130,6 +1149,8 @@ void restore_record_inputs(const DatasetRecord& rec, PrepJob& job,
             for (size_t i = 0; i < rows.size(); i++) {
                 rows[i].fps = rates.rows[i].fps;
                 rows[i].lut = rates.rows[i].lut;
+                rows[i].clip_start = rates.rows[i].clip_start;
+                rows[i].clip_end = rates.rows[i].clip_end;
             }
         if (same_rows(clicks)) job.mask_clicks = clicks.clicks;
         if (!rows.empty()) camera_model = rows[0].camera_model;

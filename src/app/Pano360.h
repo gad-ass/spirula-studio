@@ -127,6 +127,10 @@ inline bool pano360_needs_track1(const Pano360Layout& l) { return !l.sphere(); }
 // at 1:1. Any other shape takes the nearer of 2:1 and 1:1, with `exact` false.
 int packed_lens_count(int width, int height, bool& exact);
 
+// The size of each of `lenses` lenses cut along the frame's longer side.
+void packed_lens_size(int width, int height, int lenses, int& out_width,
+                      int& out_height);
+
 // Lens `lens` of `lenses` along the frame's longer side, as its own tightly
 // packed image.
 void packed_lens_crop(const uint8_t* px, int width, int height, int channels,

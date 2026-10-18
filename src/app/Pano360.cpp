@@ -452,14 +452,22 @@ int packed_lens_count(int width, int height, bool& exact) {
     return lenses;
 }
 
+void packed_lens_size(int width, int height, int lenses, int& out_width,
+                      int& out_height) {
+    lenses = std::max(lenses, 1);
+    const bool stacked = height > width;
+    out_width = stacked ? width : width / lenses;
+    out_height = stacked ? height / lenses : height;
+}
+
 void packed_lens_crop(const uint8_t* px, int width, int height, int channels,
                       int lenses, int lens, std::vector<uint8_t>& out,
                       int& out_width, int& out_height) {
     lenses = std::max(lenses, 1);
     lens = std::min(std::max(lens, 0), lenses - 1);
     const bool stacked = height > width;
-    const int w = stacked ? width : width / lenses;
-    const int h = stacked ? height / lenses : height;
+    int w = 0, h = 0;
+    packed_lens_size(width, height, lenses, w, h);
     const size_t x0 = stacked ? 0 : (size_t)lens * w;
     const size_t y0 = stacked ? (size_t)lens * h : 0;
     const size_t row = (size_t)w * channels;
