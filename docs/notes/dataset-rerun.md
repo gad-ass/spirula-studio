@@ -54,8 +54,9 @@ same fields however the panel was arranged:
   folder of photos depends on nothing else -- photos already gathered are kept
   whatever the import mode says -- except the blur rule, which sorts gathered
   photos as it does video frames: its threshold, the neighbour rule and the
-  similarity threshold are fields wherever it applies, listed only when on,
-  and a threshold set by hand is a value of its own because that run pauses.
+  similarity threshold are fields wherever it applies, listed only when the
+  rule is on (the similarity threshold is part of it), and a threshold set by
+  hand is a value of its own because that run pauses.
 - Masks: per input, masks it brought and the stencil drawn on it; the
   segmentation settings, split into those that make training masks and those
   that make `feature_masks/`.
@@ -129,7 +130,10 @@ reconstructed, so that still makes frames and reconstruction again. The two
 kinds of left-out frame share `images_skipped/` and are told apart by the
 list: `- path` never had a camera and stays aside, a bare path was moved
 aside by a sort and comes back with the next one. Frames of several files --
-`cam0/`, `cam1/` -- are judged by their worst lens and move together.
+a video's lens folders, or photographs whose camera folders hold the same file
+names -- are judged by their worst lens and move together; folders that do
+not match (`day1/`, `day2/`) are one sequence. A dataset added as an input, or
+photos read in place, are never sorted: nothing of the user's is moved.
 
 ### Masks
 

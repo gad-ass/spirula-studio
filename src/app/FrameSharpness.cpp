@@ -2,9 +2,18 @@
 
 #include "app/FrameSharpness.h"
 
+#include "blur/EdgeWidth.h"
+#include "core/Env.h"
+#ifdef SS_HAVE_BLUR_GPU
+#include "blur/EdgeWidthGpu.h"
+#else
+namespace blur { class EdgeWidthGpu {}; }
+#endif
+
 #include <algorithm>
 #include <cmath>
 #include <cstddef>
+#include <string>
 #include <vector>
 
 namespace app {
@@ -91,7 +100,8 @@ void half_grey(const uint8_t* rgb, int W, int H, int w, int h, std::vector<float
 }
 
 // The widths of the sharpest of the strong edges across one axis of `g`
-// (`along_x`: edges a row crosses), averaged; negative for too few.
+// (`along_x`: edges a row crosses), averaged; negative for too few. Every edge
+// is counted, into the histograms the GPU copy (blur/EdgeWidthGpu.h) builds.
 float axis_width(const std::vector<float>& g, int w, int h, bool along_x) {
     const float* d = g.data();
     auto grad = [&](int x, int y, float& across, float& other) {
@@ -102,60 +112,41 @@ float axis_width(const std::vector<float>& g, int w, int h, bool along_x) {
         other = along_x ? gy : gx;
     };
     // The 99th percentile of the gradient, off every fourth pixel each way.
-    std::vector<float> mag;
-    mag.reserve((size_t)(w / 4 + 1) * (h / 4 + 1));
+    std::vector<uint32_t> mag(blur::kMagBins, 0u);
+    uint64_t n = 0;
     for (int y = 1; y < h - 1; y += 4)
         for (int x = 1; x < w - 1; x += 4) {
             float a, o;
             grad(x, y, a, o);
-            mag.push_back(std::fabs(a));
+            mag[(size_t)blur::mag_bin(std::fabs(a))]++;
+            n++;
         }
-    if (mag.size() < 100) return -1.0f;
-    const size_t at = mag.size() * 99 / 100;
-    std::nth_element(mag.begin(), mag.begin() + at, mag.end());
-    const float strong = mag[at];
+    if (n < 100) return -1.0f;
+    const float strong = blur::strong_from_hist(mag.data(), n);
 
     // Edges that really run across this axis and stand clear of the noise, off
-    // every other pixel each way: a quarter of them is still tens of thousands.
-    std::vector<uint32_t> edge;
+    // every other pixel each way.
+    const int step = along_x ? 1 : w, len = along_x ? w : h;
+    uint32_t widths[blur::kWidthBins] = {};
     for (int y = 3; y < h - 3; y += 2)
         for (int x = 3; x < w - 3; x += 2) {
             float a, o;
             grad(x, y, a, o);
-            if (std::fabs(a) > strong && std::fabs(a) > 2.0f * std::fabs(o))
-                edge.push_back((uint32_t)((size_t)y * w + x));
+            if (!(std::fabs(a) > strong && std::fabs(a) > 2.0f * std::fabs(o))) continue;
+            const bool up = a > 0.0f;
+            const float* p = d + (size_t)y * w + x;
+            const int pos = along_x ? x : y;
+            int lo = 0, hi = 0;
+            while (pos - lo > 0 && lo < blur::kReach &&
+                   (up ? p[-(lo + 1) * step] < p[-lo * step]
+                       : p[-(lo + 1) * step] > p[-lo * step]))
+                lo++;
+            while (pos + hi < len - 1 && hi < blur::kReach &&
+                   (up ? p[(hi + 1) * step] > p[hi * step] : p[(hi + 1) * step] < p[hi * step]))
+                hi++;
+            if (std::fabs(p[hi * step] - p[-lo * step]) > blur::kStep) widths[lo + hi]++;
         }
-    constexpr size_t kSample = 1500;
-    constexpr int kReach = 60;
-    constexpr float kStep = 12.0f;    // a real step, in 8-bit levels, not a ripple
-    const size_t stride = std::max<size_t>(1, edge.size() / kSample);
-    const int step = along_x ? 1 : w, len = along_x ? w : h;
-    std::vector<float> widths;
-    for (size_t e = 0; e < edge.size(); e += stride) {
-        const int x = (int)(edge[e] % (uint32_t)w), y = (int)(edge[e] / (uint32_t)w);
-        float a, o;
-        grad(x, y, a, o);
-        const bool up = a > 0.0f;
-        const float* p = d + edge[e];
-        const int pos = along_x ? x : y;
-        int lo = 0, hi = 0;
-        while (pos - lo > 0 && lo < kReach &&
-               (up ? p[-(lo + 1) * step] < p[-lo * step] : p[-(lo + 1) * step] > p[-lo * step]))
-            lo++;
-        while (pos + hi < len - 1 && hi < kReach &&
-               (up ? p[(hi + 1) * step] > p[hi * step] : p[(hi + 1) * step] < p[hi * step]))
-            hi++;
-        if (std::fabs(p[hi * step] - p[-lo * step]) > kStep) widths.push_back((float)(lo + hi));
-    }
-    if (widths.size() < 30) return -1.0f;
-    std::sort(widths.begin(), widths.end());
-    double sum = 0.0;
-    // The sharpest fifth, less the very narrowest: blur widens every edge,
-    // while a sharp frame of softly shaded things has wide edges among
-    // narrow ones (the middle half ranked blinds close up as most blurred).
-    const size_t a = widths.size() / 20, b = widths.size() / 4;
-    for (size_t i = a; i < b; i++) sum += widths[i];
-    return (float)(sum / (double)(b - a));
+    return blur::width_from_hist(widths);
 }
 
 }  // namespace
@@ -168,6 +159,28 @@ float edge_width_px(const uint8_t* rgb, int width, int height) {
     const float x = axis_width(g, w, h, true), y = axis_width(g, w, h, false);
     if (x < 0.0f || y < 0.0f) return -1.0f;
     return 2.0f * std::max(x, y);
+}
+
+EdgeMeter::EdgeMeter() {
+#ifdef SS_HAVE_BLUR_GPU
+    const char* cpu = spirula::env("BLUR_CPU");
+    if ((!cpu || std::string(cpu) != "1") && blur::EdgeWidthGpu::availability().empty())
+        _gpu = std::make_unique<blur::EdgeWidthGpu>();
+#endif
+}
+
+EdgeMeter::~EdgeMeter() = default;
+
+float EdgeMeter::measure(const uint8_t* rgb, int width, int height, uint64_t device) {
+#ifdef SS_HAVE_BLUR_GPU
+    float out = -1.0f;
+    if (_gpu && (device ? _gpu->measure_device(device, width, height, out)
+                        : _gpu->measure(rgb, width, height, out)))
+        return out;
+#else
+    (void)device;
+#endif
+    return edge_width_px(rgb, width, height);
 }
 
 }  // namespace app

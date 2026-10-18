@@ -852,6 +852,13 @@ private:
     std::string _picks_workspace;    // the output folder _picks was measured for
     float _picks_size = 48.0f;       // a thumbnail's width, unscaled
     bool _was_reviewing = false;     // SfmRunner::reviewing(), the frame before
+    // The Sharpness view's walk of the rule over _picks, and what it was for.
+    struct PickWalk {
+        std::string key;
+        std::vector<std::vector<Pick>> rows;
+        std::vector<float> blurs, steps;
+        bool differs = false;
+    } _pick_walk;
     // The two images behind whichever cell of the match map the cursor is on.
     PairPreview _pairs_view;
     // The model as the mapper builds it, drawn by the same GL preview the

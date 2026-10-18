@@ -68,9 +68,9 @@ int judge_image_folder(const std::string& dir, const FrameSelectOptions& options
                        const std::function<void(const std::string&)>& log,
                        const std::atomic<bool>& cancel);
 
-// The same over frames of several files: each of `folders` under `dir` is a
-// camera ("" is `dir`), files of one name are one frame, as blurred as its
-// worst lens, and it goes or stays whole. `judged` gets the first folder's.
+// The same over a rig: each of `folders` under `dir` is a camera, files of one
+// name are one frame, as blurred as its worst lens, moved or deleted whole as
+// above. `judged` gets the first folder's.
 int judge_image_sets(const std::string& dir, const std::vector<std::string>& folders,
                      const FrameSelectOptions& options,
                      const std::function<void(const std::string&)>& log,

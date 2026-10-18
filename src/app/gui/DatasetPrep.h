@@ -16,6 +16,7 @@
 #include "app/FrameClip.h"
 #include "app/FrameLook.h"
 #include "app/FrameMask.h"
+#include "app/FramePick.h"
 #include "app/Pano360.h"
 #include "app/gui/FilmReel.h"
 #include "app/gui/PrepProgress.h"
@@ -297,15 +298,15 @@ struct PrepJob {
     bool  adaptive_fps = false;
     float adaptive_range = 4.0f;
     int   sharp_window = 3;          // keep the sharpest of N (1 = off)
-    // Which chosen frames are left out after all (app/FramePick.h, PickRule):
-    // blurred across more than `blur_px` pixels, or under `similar_bits`
-    // different from the last one kept (0 = off). Photographs too.
+    // Which chosen frames are left out after all (pick_rule below): blurred
+    // across more than `blur_px` pixels, or under `similar_bits` different
+    // from the last one kept (0 = off). Photographs too.
     bool  skip_blurry = false;
     float blur_px = 8.0f;
     bool  blur_neighbour = true;
     int   similar_bits = 0;
     // The threshold is to be set at a pause, looking at the frames, rather
-    // than taken as it stands (blur_mode below).
+    // than taken as it stands.
     bool  blur_review = false;
     // Frames left out stay in images_skipped/ beside images/. On by default:
     // a threshold can then be eased without extracting again.
@@ -431,34 +432,21 @@ inline std::string input_lut(const PrepJob& job, const PrepInput& in) {
     return input_lut(job.inputs, input_index(job, in));
 }
 
-// PrepJob's blur settings as the one choice a screen offers: off, a fixed
-// threshold that runs straight through, or one set by hand at a pause. The
-// thresholds are named in dmsg::blur_mode_light and its neighbours.
-enum BlurMode { kBlurKeep = 0, kBlurLight, kBlurStandard, kBlurStrict, kBlurManual };
-inline constexpr float kBlurPreset[] = {10.0f, 8.0f, 5.0f};
-
-inline int blur_mode(const PrepJob& job) {
-    if (!job.skip_blurry) return kBlurKeep;
-    for (int i = 0; i < 3 && !job.blur_review; i++)
-        if (job.blur_px == kBlurPreset[i]) return kBlurLight + i;
-    return kBlurManual;
-}
-
-inline void set_blur_mode(PrepJob& job, int mode) {
-    job.skip_blurry = mode != kBlurKeep;
-    job.blur_review = mode == kBlurManual;
-    if (mode >= kBlurLight && mode <= kBlurStrict) job.blur_px = kBlurPreset[mode - kBlurLight];
+// The rule PrepJob's settings make (app/FramePick.h). Similar frames are one
+// of its settings: nothing is left out unless skip_blurry is on.
+inline app::PickRule pick_rule(const PrepJob& job) {
+    if (!job.skip_blurry) return {};
+    return app::PickRule{job.blur_px, job.blur_neighbour, job.similar_bits};
 }
 
 // The rule as kSkippedListFile's first line states it: what the frames on
 // disk are sorted by. Empty when it is off.
 inline std::string blur_rule_text(const PrepJob& job) {
-    if (!job.skip_blurry && job.similar_bits <= 0) return {};
+    if (!job.skip_blurry) return {};
     char text[96];
-    std::snprintf(text, sizeof text, "blur=%g neighbour=%d similar=%d%s",
-                  job.skip_blurry ? job.blur_px : 0.0f,
-                  job.skip_blurry && job.blur_neighbour ? 1 : 0, job.similar_bits,
-                  job.skip_blurry && job.blur_review ? " by-hand" : "");
+    std::snprintf(text, sizeof text, "blur=%g neighbour=%d similar=%d%s", job.blur_px,
+                  job.blur_neighbour ? 1 : 0, job.similar_bits,
+                  job.blur_review ? " by-hand" : "");
     return text;
 }
 
@@ -871,6 +859,7 @@ private:
     StageTally _frames_tally, _masks_tally;
     std::vector<std::string> _left_out;   // kSkippedListFile, as this run sorts
     std::vector<std::string> _unbuilt;    // ... and its "- " lines
+    std::vector<bool> _streamed;          // ruled on by the built-in decoder as it went
     bool _split_later = false;            // packed lenses wait for the review
     bool _sorted = false;                 // sort_frames ran on some input
 };

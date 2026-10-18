@@ -3838,146 +3838,7 @@ SS_MSG(skip_blurry_help,
        " her karenin kendisinde, kenarlarının genişliğinden ölçülür: video"
        " kareleri, görüntü dizileri ve fotoğraflar için aynı şekilde."));
 
-SS_MSG(blur_mode,
-    EN("Skip blurry frames"),
-    JA("ぶれたフレームを除外"),
-    ZH_HANS("跳过模糊帧"),
-    ZH_HANT("略過模糊影格"),
-    KO("흐린 프레임 건너뛰기"),
-    DE("Unscharfe Bilder überspringen"),
-    FR("Ignorer les images floues"),
-    ES("Omitir fotogramas borrosos"),
-    PT("Ignorar quadros borrados"),
-    IT("Salta i fotogrammi sfocati"),
-    NL("Onscherpe beelden overslaan"),
-    RU("Пропускать размытые кадры"),
-    TR("Bulanık kareleri atla"));
-
-SS_MSG(blur_mode_help,
-    EN("What to do with frames smeared by camera shake or motion. The blur"
-       " is measured on each frame by itself, from how wide its edges are,"
-       " so video, image sequences and photographs are treated alike. Each"
-       " choice in the list says what it leaves out; only Set by hand "
-       "pauses the run."),
-    JA("手ぶれや動きで流れたフレームをどう扱うかを選びます。ぶれはフレームごとに"
-       "エッジの幅から測るので、動画、連番画像、写真のどれも同じ扱いです。一覧の"
-       "各項目に、何を除外するかが書いてあります。処理を一時停止するのは「手動で"
-       "設定」だけです。"),
-    ZH_HANS("选择如何处理因相机抖动或运动而模糊的帧。模糊按每一帧自身的边缘宽度测量，"
-            "因此视频、图像序列和照片的处理方式相同。列表中的每一项都说明它会剔除什么"
-            "；只有“手动设置”会暂停运行。"),
-    ZH_HANT("選擇如何處理因相機晃動或運動而模糊的影格。模糊依每個影格自身的邊緣寬度測"
-            "量，因此視訊、影像序列和照片的處理方式相同。清單中的每一項都說明它會剔除"
-            "什麼；只有「手動設定」會暫停執行。"),
-    KO("카메라 흔들림이나 움직임으로 번진 프레임을 어떻게 할지 정합니다."
-       " 흐림은 각 프레임의 가장자리 폭으로 측정하므로 동영상, 이미지 "
-       "시퀀스, 사진을 똑같이 다룹니다. 목록의 각 항목에 무엇을 빼는지"
-       " 적혀 있으며, 실행을 멈추는 것은 ‘직접 설정’뿐입니다."),
-    DE("Was mit Bildern geschieht, die durch Verwackeln oder Bewegung "
-       "verwischt sind. Die Unschärfe wird an jedem Bild für sich "
-       "gemessen, an der Breite seiner Kanten, sodass Video, Bildsequenzen"
-       " und Fotos gleich behandelt werden. Jeder Eintrag der Liste sagt, "
-       "was er auslässt; nur „Von Hand einstellen“ hält den Lauf an."),
-    FR("Que faire des images brouillées par un bougé ou un mouvement de la"
-       " caméra. Le flou est mesuré sur chaque image, d’après la largeur "
-       "de ses contours ; vidéo, séquences d’images et photos sont donc "
-       "traitées de la même façon. Chaque choix de la liste dit ce qu’il "
-       "écarte ; seul « Régler à la main » met le traitement en pause."),
-    ES("Qué hacer con los fotogramas emborronados por el temblor o el "
-       "movimiento de la cámara. El desenfoque se mide en cada fotograma "
-       "por sí solo, por el ancho de sus bordes, así que el vídeo, las "
-       "secuencias de imágenes y las fotografías se tratan igual. Cada "
-       "opción de la lista dice qué descarta; solo «Ajustar a mano» pausa "
-       "el proceso."),
-    PT("O que fazer com os quadros borrados por tremor ou movimento da "
-       "câmera. O borrão é medido em cada quadro, pela largura das suas "
-       "bordas, de modo que vídeo, sequências de imagens e fotografias são"
-       " tratados da mesma forma. Cada opção da lista diz o que deixa de "
-       "fora; só “Ajustar à mão” pausa a execução."),
-    IT("Cosa fare dei fotogrammi mossi per il tremolio o il movimento "
-       "della fotocamera. La sfocatura si misura su ogni fotogramma, dalla"
-       " larghezza dei suoi bordi, quindi video, sequenze di immagini e "
-       "fotografie sono trattati allo stesso modo. Ogni voce dell’elenco "
-       "dice cosa scarta; solo «Imposta a mano» mette in pausa "
-       "l’esecuzione."),
-    NL("Wat er gebeurt met beelden die door cameratrilling of beweging "
-       "zijn vervaagd. De onscherpte wordt op elk beeld afzonderlijk "
-       "gemeten, aan de breedte van de randen, zodat video, beeldreeksen "
-       "en foto’s gelijk worden behandeld. Elke keuze in de lijst zegt wat"
-       " ze weglaat; alleen ‘Met de hand instellen’ pauzeert de run."),
-    RU("Что делать с кадрами, смазанными из-за дрожания камеры или "
-       "движения. Размытие измеряется по самому кадру, по ширине его "
-       "границ, поэтому видео, последовательности изображений и фотографии"
-       " обрабатываются одинаково. Каждый пункт списка говорит, что он "
-       "исключает; приостанавливает запуск только «Задать вручную»."),
-    TR("Kamera sarsıntısı veya hareketle bulanıklaşan karelere ne "
-       "yapılacağını belirler. Bulanıklık her karenin kendisinde, "
-       "kenarlarının genişliğinden ölçülür; bu yüzden video, görüntü "
-       "dizileri ve fotoğraflar aynı şekilde ele alınır. Listedeki her "
-       "seçenek neyi dışarıda bıraktığını söyler; çalışmayı yalnızca “Elle"
-       " ayarla” duraklatır."));
-
-SS_MSG(blur_mode_keep,
-    EN("Off (keep all frames)"),
-    JA("オフ（すべて残す）"),
-    ZH_HANS("关闭（保留所有帧）"),
-    ZH_HANT("關閉（保留所有影格）"),
-    KO("끔(모든 프레임 유지)"),
-    DE("Aus (alle Bilder behalten)"),
-    FR("Désactivé (garder toutes les images)"),
-    ES("Desactivado (conservar todos)"),
-    PT("Desligado (manter todos os quadros)"),
-    IT("No (tieni tutti i fotogrammi)"),
-    NL("Uit (alle beelden behouden)"),
-    RU("Выкл. (оставить все кадры)"),
-    TR("Kapalı (tüm kareleri tut)"));
-
-SS_MSG(blur_mode_light,
-    EN("Skip heavy blur (over 10 px)"),
-    JA("強いぶれを除外（10 px 超）"),
-    ZH_HANS("跳过严重模糊（超过 10 px）"),
-    ZH_HANT("略過嚴重模糊（超過 10 px）"),
-    KO("심한 흐림 건너뛰기(10 px 초과)"),
-    DE("Starke Unschärfe überspringen (über 10 px)"),
-    FR("Ignorer le flou marqué (plus de 10 px)"),
-    ES("Omitir desenfoque fuerte (más de 10 px)"),
-    PT("Ignorar borrão forte (mais de 10 px)"),
-    IT("Salta la sfocatura forte (oltre 10 px)"),
-    NL("Sterke onscherpte overslaan (meer dan 10 px)"),
-    RU("Пропускать сильное размытие (более 10 px)"),
-    TR("Ağır bulanıklığı atla (10 px üzeri)"));
-
-SS_MSG(blur_mode_standard,
-    EN("Skip noticeable blur (over 8 px)"),
-    JA("目につくぶれを除外（8 px 超）"),
-    ZH_HANS("跳过明显模糊（超过 8 px）"),
-    ZH_HANT("略過明顯模糊（超過 8 px）"),
-    KO("눈에 띄는 흐림 건너뛰기(8 px 초과)"),
-    DE("Sichtbare Unschärfe überspringen (über 8 px)"),
-    FR("Ignorer le flou visible (plus de 8 px)"),
-    ES("Omitir desenfoque apreciable (más de 8 px)"),
-    PT("Ignorar borrão perceptível (mais de 8 px)"),
-    IT("Salta la sfocatura evidente (oltre 8 px)"),
-    NL("Zichtbare onscherpte overslaan (meer dan 8 px)"),
-    RU("Пропускать заметное размытие (более 8 px)"),
-    TR("Belirgin bulanıklığı atla (8 px üzeri)"));
-
-SS_MSG(blur_mode_strict,
-    EN("Skip even slight blur (over 5 px)"),
-    JA("わずかなぶれも除外（5 px 超）"),
-    ZH_HANS("轻微模糊也跳过（超过 5 px）"),
-    ZH_HANT("輕微模糊也略過（超過 5 px）"),
-    KO("약한 흐림도 건너뛰기(5 px 초과)"),
-    DE("Auch leichte Unschärfe überspringen (über 5 px)"),
-    FR("Ignorer même le flou léger (plus de 5 px)"),
-    ES("Omitir incluso desenfoque leve (más de 5 px)"),
-    PT("Ignorar até borrão leve (mais de 5 px)"),
-    IT("Salta anche la sfocatura lieve (oltre 5 px)"),
-    NL("Ook lichte onscherpte overslaan (meer dan 5 px)"),
-    RU("Пропускать даже слабое размытие (более 5 px)"),
-    TR("Hafif bulanıklığı bile atla (5 px üzeri)"));
-
-SS_MSG(blur_mode_manual,
+SS_MSG(blur_review,
     EN("Set by hand (the run pauses)"),
     JA("手動で設定（処理を一時停止）"),
     ZH_HANS("手动设置（运行会暂停）"),
@@ -3992,140 +3853,7 @@ SS_MSG(blur_mode_manual,
     RU("Задать вручную (запуск приостановится)"),
     TR("Elle ayarla (çalışma duraklar)"));
 
-SS_MSG(blur_mode_custom,
-    EN("By hand"),
-    JA("手動"),
-    ZH_HANS("手动"),
-    ZH_HANT("手動"),
-    KO("직접"),
-    DE("Von Hand"),
-    FR("À la main"),
-    ES("A mano"),
-    PT("À mão"),
-    IT("A mano"),
-    NL("Met de hand"),
-    RU("Вручную"),
-    TR("Elle"));
-
-SS_MSG(blur_mode_keep_help,
-    EN("Every frame is used, however blurred."),
-    JA("どれだけぶれていても、すべてのフレームを使います。"),
-    ZH_HANS("无论多模糊，每一帧都会使用。"),
-    ZH_HANT("無論多模糊，每個影格都會使用。"),
-    KO("아무리 흐려도 모든 프레임을 사용합니다."),
-    DE("Jedes Bild wird verwendet, wie unscharf auch immer."),
-    FR("Toutes les images sont utilisées, aussi floues soient-elles."),
-    ES("Se usan todos los fotogramas, por borrosos que estén."),
-    PT("Todos os quadros são usados, por mais borrados que estejam."),
-    IT("Si usano tutti i fotogrammi, per quanto sfocati."),
-    NL("Elk beeld wordt gebruikt, hoe onscherp ook."),
-    RU("Используются все кадры, какими бы размытыми они ни были."),
-    TR("Ne kadar bulanık olursa olsun her kare kullanılır."));
-
-SS_MSG(blur_mode_light_help,
-    EN("Leaves out only the frames that look shaken at a glance: smeared "
-       "across more than 10 pixels. The most frames are kept."),
-    JA("ひと目でぶれていると分かるフレームだけを除外します（10 ピクセルを超え"
-       "るぶれ）。残るフレームが最も多い設定です。"),
-    ZH_HANS("只剔除一眼就能看出抖动的帧：模糊超过 10 像素。保留的帧最多。"),
-    ZH_HANT("只剔除一眼就能看出晃動的影格：模糊超過 10 像素。保留的影格最多。"),
-    KO("한눈에 흔들려 보이는 프레임만 뺍니다(10픽셀 넘게 번진 것). "
-       "가장 많은 프레임이 남습니다."),
-    DE("Lässt nur die Bilder aus, die auf den ersten Blick verwackelt "
-       "aussehen: über mehr als 10 Pixel verwischt. Die meisten Bilder "
-       "bleiben."),
-    FR("N’écarte que les images qui paraissent bougées au premier coup "
-       "d’œil : brouillées sur plus de 10 pixels. C’est le choix qui garde"
-       " le plus d’images."),
-    ES("Descarta solo los fotogramas que se ven movidos a simple vista: "
-       "emborronados en más de 10 píxeles. Es la opción que más fotogramas"
-       " conserva."),
-    PT("Deixa de fora só os quadros que parecem tremidos à primeira vista:"
-       " borrados em mais de 10 pixels. É a opção que mantém mais quadros."),
-    IT("Scarta solo i fotogrammi che appaiono mossi a colpo d’occhio: "
-       "sfocati per più di 10 pixel. È la scelta che tiene più fotogrammi."),
-    NL("Laat alleen de beelden weg die in één oogopslag bewogen lijken: "
-       "over meer dan 10 pixels vervaagd. De meeste beelden blijven "
-       "behouden."),
-    RU("Исключает только кадры, которые с первого взгляда выглядят "
-       "смазанными: размытие более 10 пикселей. Остаётся больше всего "
-       "кадров."),
-    TR("Yalnızca ilk bakışta sarsılmış görünen kareleri dışarıda bırakır: "
-       "10 pikselden fazla bulanık olanlar. En çok kareyi tutan "
-       "seçenektir."));
-
-SS_MSG(blur_mode_standard_help,
-    EN("Leaves out frames whose blur shows as soon as they are looked at "
-       "in full size: smeared across more than 8 pixels. A good place to "
-       "start."),
-    JA("等倍で見るとすぐにぶれが分かるフレームを除外します（8 ピクセルを超える"
-       "ぶれ）。まずはこの設定がおすすめです。"),
-    ZH_HANS("剔除按原始大小一看就能发现模糊的帧：模糊超过 8 像素。适合作为起点。"),
-    ZH_HANT("剔除以原始大小一看就能發現模糊的影格：模糊超過 8 像素。適合作為起點。"),
-    KO("원래 크기로 보면 바로 흐림이 보이는 프레임을 뺍니다(8픽셀 넘게"
-       " 번진 것). 처음 시작하기에 좋습니다."),
-    DE("Lässt Bilder aus, deren Unschärfe auffällt, sobald man sie in "
-       "voller Größe ansieht: über mehr als 8 Pixel verwischt. Ein guter "
-       "Ausgangspunkt."),
-    FR("Écarte les images dont le flou se voit dès qu’on les regarde en "
-       "taille réelle : brouillées sur plus de 8 pixels. Un bon point de "
-       "départ."),
-    ES("Descarta los fotogramas cuyo desenfoque se nota en cuanto se miran"
-       " a tamaño completo: emborronados en más de 8 píxeles. Un buen "
-       "punto de partida."),
-    PT("Deixa de fora os quadros cujo borrão aparece assim que são vistos "
-       "em tamanho real: borrados em mais de 8 pixels. Um bom ponto de "
-       "partida."),
-    IT("Scarta i fotogrammi la cui sfocatura si nota appena li si guarda a"
-       " dimensione piena: sfocati per più di 8 pixel. Un buon punto di "
-       "partenza."),
-    NL("Laat beelden weg waarvan de onscherpte opvalt zodra je ze op volle"
-       " grootte bekijkt: over meer dan 8 pixels vervaagd. Een goed "
-       "beginpunt."),
-    RU("Исключает кадры, размытие которых заметно сразу при просмотре в "
-       "полном размере: более 8 пикселей. Хорошая отправная точка."),
-    TR("Tam boyutta bakıldığında bulanıklığı hemen görülen kareleri "
-       "dışarıda bırakır: 8 pikselden fazla bulanık olanlar. Başlamak için"
-       " iyi bir seçim."));
-
-SS_MSG(blur_mode_strict_help,
-    EN("Leaves out frames with even a mild smear, across more than 5 "
-       "pixels. Some usable frames go with them: for a capture with frames"
-       " to spare."),
-    JA("わずかなぶれ（5 ピクセル超）のフレームも除外します。使えるフレームも一"
-       "部いっしょに外れるので、フレーム数に余裕のある撮影向けです。"),
-    ZH_HANS("连轻微模糊（超过 5 像素）的帧也剔除。一些可用的帧也会被一并剔除，适合"
-            "帧数充裕的拍摄。"),
-    ZH_HANT("連輕微模糊（超過 5 像素）的影格也剔除。一些可用的影格也會被一併剔除，"
-            "適合影格數充裕的拍攝。"),
-    KO("약하게 번진 프레임(5픽셀 초과)도 뺍니다. 쓸 만한 프레임도 일"
-       "부 함께 빠지므로, 프레임이 넉넉한 촬영에 맞습니다."),
-    DE("Lässt auch Bilder mit leichter Unschärfe aus, über mehr als 5 "
-       "Pixel. Einige brauchbare Bilder gehen dabei mit: für Aufnahmen mit"
-       " Bildern im Überfluss."),
-    FR("Écarte même les images légèrement brouillées, sur plus de 5 "
-       "pixels. Quelques images utilisables partent avec elles : pour une "
-       "prise de vue qui a des images à revendre."),
-    ES("Descarta incluso los fotogramas con un desenfoque leve, de más de "
-       "5 píxeles. Con ellos se van algunos aprovechables: para capturas a"
-       " las que les sobran fotogramas."),
-    PT("Deixa de fora até os quadros com borrão leve, acima de 5 pixels. "
-       "Alguns quadros aproveitáveis vão junto: para capturas com quadros "
-       "de sobra."),
-    IT("Scarta anche i fotogrammi con una sfocatura lieve, oltre 5 pixel. "
-       "Con loro se ne vanno alcuni utilizzabili: per riprese con "
-       "fotogrammi in abbondanza."),
-    NL("Laat ook beelden met lichte onscherpte weg, over meer dan 5 "
-       "pixels. Enkele bruikbare beelden gaan mee: voor een opname met "
-       "beelden over."),
-    RU("Исключает кадры даже со слабым размытием, более 5 пикселей. Вместе"
-       " с ними уходит часть пригодных кадров: для съёмки, где кадров с "
-       "запасом."),
-    TR("Hafif bulanık kareleri bile dışarıda bırakır: 5 pikselden fazla "
-       "olanlar. Kullanılabilir bazı kareler de onlarla gider: karesi bol "
-       "çekimler için."));
-
-SS_MSG(blur_mode_manual_help,
+SS_MSG(blur_review_help,
     EN("PAUSES the run once the frames are out and opens the Sharpness "
        "view. Set the threshold there while looking at the frames, then "
        "press Continue; masks, reconstruction and depth are not started "
@@ -4172,22 +3900,6 @@ SS_MSG(blur_mode_manual_help,
        " açar. Karelere bakarak eşiği orada ayarlayın, sonra “Bu karelerle"
        " devam et” düğmesine basın; maskeler, yeniden kurma ve derinlik o "
        "zamana kadar başlamaz."));
-
-SS_MSG(blur_mode_custom_help,
-    EN("Any threshold: drag the line on the histogram below."),
-    JA("任意のしきい値: 下のヒストグラムの線をドラッグします。"),
-    ZH_HANS("任意阈值：拖动下方直方图上的线。"),
-    ZH_HANT("任意閾值：拖曳下方直方圖上的線。"),
-    KO("원하는 임계값: 아래 히스토그램의 선을 끌어 옮기세요."),
-    DE("Beliebige Schwelle: die Linie im Histogramm darunter ziehen."),
-    FR("Un seuil quelconque : faites glisser la ligne sur l’histogramme "
-       "ci-dessous."),
-    ES("Cualquier umbral: arrastre la línea del histograma de abajo."),
-    PT("Qualquer limiar: arraste a linha no histograma abaixo."),
-    IT("Una soglia qualsiasi: trascina la linea sull’istogramma qui sotto."),
-    NL("Elke drempel: sleep de lijn in het histogram hieronder."),
-    RU("Любой порог: перетащите линию на гистограмме ниже."),
-    TR("Herhangi bir eşik: aşağıdaki histogramdaki çizgiyi sürükleyin."));
 
 SS_MSG(blur_every_frame,
     EN("A video that keeps every frame (0 fps) is not sorted: nothing is "
@@ -4268,7 +3980,7 @@ SS_MSG(blur_kept_note,
        "korur. Yeniden ayıklamak için “Mevcut kareleri ve yeniden kurmayı "
        "koru” işaretini kaldırın."));
 
-SS_MSG(blur_mode_manual_note,
+SS_MSG(blur_review_note,
     EN("The run will pause after the frames, in the Sharpness view, until "
        "you press Continue."),
     JA("フレームの取り出し後、「シャープさ」ビューで処理が一時停止し、「これらの"
@@ -4296,7 +4008,7 @@ SS_MSG(blur_mode_manual_note,
     TR("Çalışma karelerden sonra “Keskinlik” görünümünde duraklar ve siz "
        "“Bu karelerle devam et” düğmesine basana kadar bekler."));
 
-SS_MSG(blur_mode_no_pause,
+SS_MSG(blur_review_no_pause,
     EN("Only the built-in engine pauses, and never in a batch: here the "
        "threshold is applied as it stands."),
     JA("一時停止するのは内蔵エンジンだけで、バッチでは停止しません。ここではしき"

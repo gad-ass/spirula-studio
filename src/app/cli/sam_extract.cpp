@@ -412,7 +412,19 @@ int sam_cli_extract(int argc, char** argv) {
     app::FrameExtractSinks sinks;
     sinks.log = [](const std::string& l) { std::fprintf(stderr, "%s\n", l.c_str()); };
     // One line a chosen frame, for a script: English and stable on purpose.
-    FILE* report = o.report.empty() ? nullptr : std::fopen(o.report.c_str(), "w");
+    FILE* report = nullptr;
+    if (!o.report.empty()) {
+        std::error_code ec;
+        const fs::path dir = fs::path(o.report).parent_path();
+        if (!dir.empty()) fs::create_directories(dir, ec);
+        report = std::fopen(o.report.c_str(), "w");
+        if (!report) {
+            std::fprintf(stderr, "%s\n",
+                         spirula::i18n::format(spirula::i18n::msg::cli::sam_report_unwritable,
+                                               {o.report}).c_str());
+            return 1;
+        }
+    }
     if (report) {
         std::fprintf(report, "frame,edge_width_px,blur_px,verdict\n");
         sinks.judged = [report](const app::FramePick& p, const nn::Image&) {

@@ -60,6 +60,7 @@ void PickSheet::reset(std::vector<std::string> names) {
     _rows.assign(names.size(), Row{});
     _names = std::move(names);
     _gen++;
+    _version++;
 }
 
 void PickSheet::add(size_t row, const app::FramePick& p, const uint8_t* rgb, int w,
@@ -79,6 +80,7 @@ void PickSheet::add(size_t row, const app::FramePick& p, std::vector<uint8_t>&& 
     r.paths.push_back(std::move(path));
     r.origins.push_back(std::move(origin));
     r.more.push_back(std::move(more));
+    _version++;
 }
 
 void PickSheet::set_dirs(size_t row, std::string keep_dir, std::string skip_dir) {
@@ -86,11 +88,13 @@ void PickSheet::set_dirs(size_t row, std::string keep_dir, std::string skip_dir)
     if (row >= _rows.size()) return;
     _rows[row].keep_dir = std::move(keep_dir);
     _rows[row].skip_dir = std::move(skip_dir);
+    _version++;
 }
 
 void PickSheet::set_in_place(size_t row, bool yes) {
     std::lock_guard<std::mutex> lk(_mu);
     if (row < _rows.size()) _rows[row].in_place = yes;
+    _version++;
 }
 
 bool PickSheet::in_place(size_t row) const {
@@ -98,10 +102,21 @@ bool PickSheet::in_place(size_t row) const {
     return row < _rows.size() && _rows[row].in_place;
 }
 
+bool PickSheet::movable(size_t row) const {
+    std::lock_guard<std::mutex> lk(_mu);
+    if (row >= _rows.size()) return false;
+    const Row& r = _rows[row];
+    if (r.keep_dir.empty() || r.skip_dir.empty()) return false;
+    for (const std::string& p : r.paths)
+        if (p.empty()) return false;
+    return true;
+}
+
 int PickSheet::resort(size_t row, app::PickRule rule) {
     namespace fs = std::filesystem;
     std::lock_guard<std::mutex> lk(_mu);
     if (row >= _rows.size()) return 0;
+    _version++;
     Row& r = _rows[row];
     const fs::path keep(r.keep_dir), skip(r.skip_dir);
     int moved = 0;
@@ -125,6 +140,7 @@ int PickSheet::resort(size_t row, app::PickRule rule) {
         path = to.string();
         return true;
     };
+    rule = app::whole_capture(rule, r.picks);
     for (size_t i = 0; i < r.picks.size(); i++) {
         rule.judge(r.picks[i]);
         if (r.paths[i].empty() || r.keep_dir.empty() || r.skip_dir.empty()) continue;
@@ -140,6 +156,7 @@ int PickSheet::discard_skipped(size_t row) {
     std::lock_guard<std::mutex> lk(_mu);
     if (row >= _rows.size() || _rows[row].skip_dir.empty()) return 0;
     Row& r = _rows[row];
+    _version++;
     const fs::path skip(r.skip_dir);
     std::error_code ec;
     int gone = 0;
@@ -186,6 +203,11 @@ std::vector<std::string> PickSheet::left_out(size_t row) const {
 uint64_t PickSheet::generation() const {
     std::lock_guard<std::mutex> lk(_mu);
     return _gen;
+}
+
+uint64_t PickSheet::version() const {
+    std::lock_guard<std::mutex> lk(_mu);
+    return _version;
 }
 
 std::vector<Pick> PickSheet::picks(size_t row) const {

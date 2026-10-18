@@ -736,8 +736,8 @@ void GuiApp::write_run_settings(std::ofstream& f) {
     if (j.prep.skip_blurry) {
         line("blur_px", cfg_str(j.prep.blur_px));
         line("blur_neighbour", cfg_str(j.prep.blur_neighbour));
+        if (j.prep.similar_bits > 0) line("similar_bits", std::to_string(j.prep.similar_bits));
     }
-    if (j.prep.similar_bits > 0) line("similar_bits", std::to_string(j.prep.similar_bits));
     line("sync_tracks", cfg_str(j.prep.sync_tracks));
     line("max_frames", std::to_string(j.prep.max_frames));
     if (!j.extra_args.empty()) line("extra_args", j.extra_args);
@@ -4402,9 +4402,8 @@ bool GuiApp::launch_dataset_job() {
         _picks_view.destroy_gl();
         _picks_workspace = _workspace;
     }
-    _sfm_job.prep.review_frames = !_batch_active &&
-                                  effective_engine() == Engine::BuiltIn &&
-                                  blur_mode(_sfm_job.prep) == kBlurManual;
+    _sfm_job.prep.review_frames = !_batch_active && effective_engine() == Engine::BuiltIn &&
+                                  _sfm_job.prep.skip_blurry && _sfm_job.prep.blur_review;
     if (effective_engine() == Engine::BuiltIn) _sfm.start(_sfm_job, films);
     else                                      _colmap.start(_colmap_job, films);
     // A run is what the column is for while it goes.
@@ -4446,29 +4445,6 @@ void photo_import_combo(PhotoImport* mode, bool no_in_place) {
         ImGui::EndCombo();
     }
     ui::help_on_hover(dmsg::photo_import_help);
-}
-
-// "Blurry frames", each choice explained on the row that picks it. The last
-// one is `by_hand`: a pause in the form, a free line in the Sharpness view.
-bool blur_mode_combo(int* mode, float width, const Msg& by_hand, const Msg& by_hand_help) {
-    const Msg* labels[] = {&dmsg::blur_mode_keep, &dmsg::blur_mode_light,
-                           &dmsg::blur_mode_standard, &dmsg::blur_mode_strict, &by_hand};
-    const Msg* helps[] = {&dmsg::blur_mode_keep_help, &dmsg::blur_mode_light_help,
-                          &dmsg::blur_mode_standard_help, &dmsg::blur_mode_strict_help,
-                          &by_hand_help};
-    bool changed = false;
-    ImGui::SetNextItemWidth(width);
-    if (ui::BeginCombo(dmsg::blur_mode, labels[*mode]->get())) {
-        for (int i = 0; i <= kBlurManual; i++) {
-            if (ui::Selectable(*labels[i], i == *mode)) {
-                *mode = i;
-                changed = true;
-            }
-            ui::help_on_hover(*helps[i]);
-        }
-        ImGui::EndCombo();
-    }
-    return changed;
 }
 
 }  // namespace
@@ -4862,36 +4838,6 @@ void GuiApp::draw_dataset_source() {
                                (!_lidar.empty() && !_lidar_in_frame));
     }
 
-    // Which frames are left out is asked with where they come from, of
-    // photographs and video alike; its fine print is in draw_dataset_basics.
-    if (!_sources.empty()) {
-        ImGui::BeginDisabled(dataset_locked(Stage::Frames));
-        PrepJob& prep = _sfm_job.prep;
-        int mode = blur_mode(prep);
-        if (blur_mode_combo(&mode, px(260.0f), dmsg::blur_mode_manual,
-                            dmsg::blur_mode_manual_help))
-            set_blur_mode(prep, mode);
-        ui::help_on_hover(dmsg::blur_mode_help);
-        if (mode == kBlurManual)
-            ui::TextDisabledWrapped(effective_engine() == Engine::BuiltIn
-                                        ? dmsg::blur_mode_manual_note
-                                        : dmsg::blur_mode_no_pause);
-        // Kept frames are not sorted, whatever this says: without the note
-        // "Keep them, run the rest" looks like a run that did nothing.
-        const StepPlan& frames = dataset_plan()[Step::Frames];
-        bool kept_unsorted = false;
-        for (const FieldChange& c : frames.changes)
-            kept_unsorted = kept_unsorted || c.key == "skip_blurry" || c.key == "blur_px" ||
-                            c.key == "blur_neighbour" || c.key == "similar_bits";
-        if (frames.act == Act::Keep && kept_unsorted)
-            ui::TextColoredWrapped(kWarn, dmsg::blur_kept_note);
-        // "Every frame" means it: extraction leaves the rule out there.
-        if ((mode != kBlurKeep || prep.similar_bits > 0) &&
-            all_videos_every_frame(_sources, prep.video_fps))
-            ui::TextColoredWrapped(kWarn, dmsg::blur_every_frame);
-        ImGui::EndDisabled();
-    }
-
     ImGui::SetNextItemWidth(px(-220.0f));
     ui::InputTextRaw("##ws", &_workspace);
     ImGui::SameLine();
@@ -5123,29 +5069,44 @@ void GuiApp::draw_dataset_basics() {
 
     ImGui::EndDisabled();
 
-    // The fine print of "Blurry frames", which is asked with the inputs
-    // (draw_dataset_source). Among the video options, or alone without video.
-    const auto draw_blur_options = [&] {
-        if (!_ds_advanced) return;
+    // Which frames are left out, of photographs and video alike: a switch,
+    // and while it is on, its settings whatever Advanced says.
+    const auto draw_skip_blurry = [&] {
         PrepJob& prep = _sfm_job.prep;
-        const int mode = blur_mode(prep);
-        if (mode == kBlurManual) {
-            ImGui::SetNextItemWidth(px(220.0f));
-            if (ui::SliderFloat(dmsg::blur_px, &prep.blur_px, 1.0f, 40.0f, "%.0f"))
-                prep.blur_px = std::round(prep.blur_px);
-            ui::help_on_hover(dmsg::blur_px_help);
-        }
-        if (mode != kBlurKeep) {
-            ui::Checkbox(dmsg::blur_neighbour, &prep.blur_neighbour);
-            ui::help_on_hover(dmsg::blur_neighbour_help);
-        }
+        ui::Checkbox(dmsg::skip_blurry, &prep.skip_blurry);
+        ui::help_on_hover(dmsg::skip_blurry_help);
+        // Kept frames are not sorted, whatever this says: without the note
+        // "Keep them, run the rest" looks like a run that did nothing.
+        const StepPlan& frames = dataset_plan()[Step::Frames];
+        bool kept_unsorted = false;
+        for (const FieldChange& c : frames.changes)
+            kept_unsorted = kept_unsorted || c.key == "skip_blurry" || c.key == "blur_px" ||
+                            c.key == "blur_neighbour" || c.key == "similar_bits";
+        if (frames.act == Act::Keep && kept_unsorted)
+            ui::TextColoredWrapped(kWarn, dmsg::blur_kept_note);
+        if (!prep.skip_blurry) return;
+        ImGui::Indent();
+        // "Every frame" means it: extraction leaves the rule out there.
+        if (all_videos_every_frame(_sources, prep.video_fps))
+            ui::TextColoredWrapped(kWarn, dmsg::blur_every_frame);
+        ImGui::SetNextItemWidth(px(220.0f));
+        // Whole pixels: a finer threshold than the measurement means nothing,
+        // and every other value is one more "made with other settings".
+        if (ui::SliderFloat(dmsg::blur_px, &prep.blur_px, 1.0f, 40.0f, "%.0f px"))
+            prep.blur_px = std::round(prep.blur_px);
+        ui::help_on_hover(dmsg::blur_px_help);
+        ui::Checkbox(dmsg::blur_neighbour, &prep.blur_neighbour);
+        ui::help_on_hover(dmsg::blur_neighbour_help);
         ImGui::SetNextItemWidth(px(220.0f));
         ui::SliderInt(dmsg::similar_bits, &prep.similar_bits, 0, 32);
         ui::help_on_hover(dmsg::similar_bits_help);
-        if (mode != kBlurKeep || prep.similar_bits > 0) {
-            ui::Checkbox(dmsg::keep_skipped, &prep.keep_skipped);
-            ui::help_on_hover(dmsg::keep_skipped_help);
-        }
+        ui::Checkbox(dmsg::blur_review, &prep.blur_review);
+        ui::help_on_hover(dmsg::blur_review_help);
+        if (prep.blur_review)
+            ui::TextDisabledWrapped(builtin ? dmsg::blur_review_note : dmsg::blur_review_no_pause);
+        ui::Checkbox(dmsg::keep_skipped, &prep.keep_skipped);
+        ui::help_on_hover(dmsg::keep_skipped_help);
+        ImGui::Unindent();
     };
 
     bool any_video = false;
@@ -5159,7 +5120,7 @@ void GuiApp::draw_dataset_basics() {
         if (_sfm_job.prep.adaptive_fps &&
             all_videos_every_frame(_sources, _sfm_job.prep.video_fps))
             ui::TextColoredWrapped(kWarn, dmsg::adaptive_fps_every_frame);
-        if (_sfm_job.prep.adaptive_fps && _ds_advanced) {
+        if (_sfm_job.prep.adaptive_fps) {
             ImGui::Indent();
             ImGui::SetNextItemWidth(px(220.0f));
             ui::SliderFloat(dmsg::adaptive_range, &_sfm_job.prep.adaptive_range,
@@ -5172,7 +5133,7 @@ void GuiApp::draw_dataset_basics() {
             ui::SliderInt(dmsg::sharpness_window, &_sfm_job.prep.sharp_window, 1, 30);
             ui::help_on_hover(dmsg::sharpness_window_help);
         }
-        draw_blur_options();
+        draw_skip_blurry();
         bool any_multi = false;
         for (const PrepInput& s : _sources)
             any_multi = any_multi || (s.is_video && !s.pano360.valid() && s.video_tracks >= 2);
@@ -5192,7 +5153,7 @@ void GuiApp::draw_dataset_basics() {
         ImGui::EndDisabled();
     } else if (!_sources.empty()) {
         ImGui::BeginDisabled(dataset_locked(Stage::Frames));
-        draw_blur_options();
+        draw_skip_blurry();
         ImGui::EndDisabled();
     }
     if (dataset_busy()) ui::help_on_hover_disabled(dmsg::step_locked);
@@ -6686,41 +6647,58 @@ void GuiApp::draw_sharpness_view(float h) {
     PrepJob& prep = _sfm_job.prep;
     const PickStyle style{kErr, kWarn, kOk, prep.blur_px};
     const std::vector<std::string> names = _picks.names();
-    std::vector<std::vector<Pick>> rows(names.size());
-    std::vector<float> moved, steps;
-    bool differs = false;
     // What is shown is what pressing Update would leave: the run's own
     // verdicts when it would change nothing, the frames the dataset has
     // sorted again when it would sort, every frame when it makes them again.
     const bool reviewing = _sfm.reviewing();
     const StepPlan& frames = dataset_plan()[Step::Frames];
     const bool settled = !reviewing && !dataset_busy() && frames.act == Act::Reuse;
-    for (size_t ri = 0; ri < names.size(); ri++) {
-        rows[ri] = _picks.picks(ri);
-        app::PickRule rule{prep.skip_blurry ? prep.blur_px : 0.0f, prep.blur_neighbour,
-                           prep.similar_bits};
-        for (size_t i = 0; i < rows[ri].size(); i++) {
-            Pick& p = rows[ri][i];
-            const app::PickVerdict ran = p.verdict;
+    const app::PickRule rule = pick_rule(prep);
+    // Walked again only when the sheet or something the walk reads moves.
+    char key[160];
+    std::snprintf(key, sizeof key, "%llu %d %d %d %g %d %d",
+                  (unsigned long long)_picks.version(), settled, frames.sort, reviewing,
+                  rule.max_blur, rule.neighbour, rule.similar_bits);
+    if (_pick_walk.key != key) {
+        _pick_walk = PickWalk{};
+        _pick_walk.key = key;
+        _pick_walk.rows.resize(names.size());
+        for (size_t ri = 0; ri < names.size(); ri++) {
+            std::vector<Pick>& row = _pick_walk.rows[ri] = _picks.picks(ri);
             // Left out as the frames were made: it has no camera, so a sort
             // neither judges it nor brings it back.
-            const bool gone = !_picks.in_place(ri) && ran != app::PickVerdict::Kept;
-            if (settled && (!frames.sort || gone)) {
-                p.as_run = true;
-            } else {
-                p.dist = rule.distance(p.hash);
-                p.as_run = rule.judge(p) == ran;
+            const bool in_place = _picks.in_place(ri);
+            const auto as_run = [&](const Pick& p) {
+                return settled && (!frames.sort || (!in_place && p.verdict != app::PickVerdict::Kept));
+            };
+            std::vector<Pick> walked;
+            for (const Pick& p : row)
+                if (!as_run(p)) walked.push_back(p);
+            app::PickRule r = app::whole_capture(rule, walked);
+            for (size_t i = 0; i < row.size(); i++) {
+                Pick& p = row[i];
+                const app::PickVerdict ran = p.verdict;
+                if (as_run(p)) {
+                    p.as_run = true;
+                } else {
+                    p.dist = r.distance(p.hash);
+                    p.as_run = r.judge(p) == ran;
+                }
+                _pick_walk.differs = _pick_walk.differs || !p.as_run;
+                if (p.blur >= 0.0f) _pick_walk.blurs.push_back(p.blur);
+                if (i == 0) continue;
+                // Against the frame before it, whatever was kept: what the
+                // histogram shows must not move when its own threshold does.
+                int bits = 0;
+                for (uint64_t x = row[i].hash ^ row[i - 1].hash; x; x &= x - 1) bits++;
+                _pick_walk.steps.push_back((float)bits);
             }
-            differs = differs || !p.as_run;
-            if (p.blur >= 0.0f) moved.push_back(p.blur);
-            if (i == 0) continue;
-            // Against the frame before it, whatever was kept: what the
-            // histogram shows must not move when its own threshold does.
-            int bits = 0;
-            for (uint64_t x = rows[ri][i].hash ^ rows[ri][i - 1].hash; x; x &= x - 1) bits++;
-            steps.push_back((float)bits);
         }
     }
+    const std::vector<std::vector<Pick>>& rows = _pick_walk.rows;
+    const std::vector<float>& moved = _pick_walk.blurs;
+    const std::vector<float>& steps = _pick_walk.steps;
+    const bool differs = _pick_walk.differs;
 
     // ---- the settings, which stay put while the frames scroll under them
     const bool locked = dataset_locked(Stage::Frames) && !reviewing;
@@ -6730,16 +6708,7 @@ void GuiApp::draw_sharpness_view(float h) {
         ui::TextColoredWrapped(kWarn, dmsg::review_hint);
     }
     ImGui::BeginDisabled(locked);
-    // Where each preset puts the line. Whether a run pauses here is the
-    // form's choice (blur_review) and is not touched.
-    int at = prep.skip_blurry ? (int)kBlurManual : (int)kBlurKeep;
-    for (int i = 0; i < 3 && prep.skip_blurry; i++)
-        if (prep.blur_px == kBlurPreset[i]) at = kBlurLight + i;
-    if (blur_mode_combo(&at, px(260.0f), dmsg::blur_mode_custom,
-                        dmsg::blur_mode_custom_help)) {
-        prep.skip_blurry = at != kBlurKeep;
-        if (at >= kBlurLight && at <= kBlurStrict) prep.blur_px = kBlurPreset[at - kBlurLight];
-    }
+    ui::Checkbox(dmsg::skip_blurry, &prep.skip_blurry);
     ui::help_on_hover(dmsg::skip_blurry_help);
     ImGui::SameLine();
     ImGui::BeginDisabled(!prep.skip_blurry);
@@ -6776,6 +6745,7 @@ void GuiApp::draw_sharpness_view(float h) {
     ImGui::EndGroup();
     ImGui::SameLine();
     ImGui::BeginGroup();
+    ImGui::BeginDisabled(!prep.skip_blurry);
     ui::Text(dmsg::similar_bits);
     ui::help_on_hover(dmsg::similar_bits_help);
     ImGui::SameLine();
@@ -6786,6 +6756,7 @@ void GuiApp::draw_sharpness_view(float h) {
     if (histogram_slider("##similarhist", steps, 0.0f, 40.0f, &similar, 0.0f, 32.0f, bars,
                          /*cut_above=*/false, [plain](float) { return plain; }))
         prep.similar_bits = (int)std::lround(similar);
+    ImGui::EndDisabled();
     ImGui::EndGroup();
     ImGui::EndDisabled();
 

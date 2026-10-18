@@ -867,6 +867,59 @@ SS_MSG(frames_resorted,
     RU("Кадров, сменивших сторону после проверки: {0}"),
     TR("Gözden geçirmeden sonra taraf değiştiren kareler: {0}"));
 
+SS_MSG(frames_settled,
+    EN("Frames that changed sides once the whole capture was measured: {0}"),
+    JA("撮影全体を測定した後に振り分けが変わったフレーム: {0}"),
+    ZH_HANS("测量完整个拍摄后改变去留的帧：{0}"),
+    ZH_HANT("測量完整個拍攝後改變去留的影格：{0}"),
+    KO("촬영 전체를 측정한 뒤 분류가 바뀐 프레임: {0}"),
+    DE("Bilder, die die Seite wechselten, nachdem die ganze Aufnahme gemessen war: {0}"),
+    FR("Images ayant changé de côté une fois toute la prise mesurée : {0}"),
+    ES("Fotogramas que cambiaron de lado al medir toda la toma: {0}"),
+    PT("Quadros que mudaram de lado depois de medida toda a captura: {0}"),
+    IT("Fotogrammi che hanno cambiato lato una volta misurata tutta la ripresa: {0}"),
+    NL("Beelden die van kant wisselden toen de hele opname gemeten was: {0}"),
+    RU("Кадров, сменивших сторону после замера всей съёмки: {0}"),
+    TR("Çekimin tamamı ölçüldükten sonra taraf değiştiren kareler: {0}"));
+
+SS_MSG(review_not_movable,
+    EN("No pause for the threshold: some frames (of a rig, of a 360 video, or"
+       " not kept aside) cannot change sides afterwards, so it is applied as "
+       "set"),
+    JA("しきい値のための一時停止はしません。一部のフレーム（リグ、360度動画、また"
+       "は退避していないもの）は後から振り分けを変えられないため、設定どおりに適用"
+       "します"),
+    ZH_HANS("不为阈值暂停：部分帧（装置、360 视频或未另行保留的帧）之后无法改变去留，"
+            "因此按当前设置应用"),
+    ZH_HANT("不為閾值暫停：部分影格（裝置、360 影片或未另行保留的影格）之後無法改變去"
+            "留，因此依目前設定套用"),
+    KO("임계값을 위해 멈추지 않습니다. 일부 프레임(리그, 360 동영상, 따로 "
+       "보관하지 않은 프레임)은 나중에 분류를 바꿀 수 없어 설정대로 적용합니다"),
+    DE("Keine Pause für die Schwelle: Manche Bilder (eines Rigs, eines "
+       "360-Videos oder nicht beiseitegelegte) können nachträglich nicht die "
+       "Seite wechseln, daher gilt sie wie eingestellt"),
+    FR("Pas de pause pour le seuil : certaines images (d’un rig, d’une vidéo"
+       " 360 ou non mises de côté) ne peuvent plus changer de côté, il est "
+       "donc appliqué tel quel"),
+    ES("Sin pausa para el umbral: algunos fotogramas (de un rig, de un vídeo"
+       " 360 o no apartados) no pueden cambiar de lado después, así que se "
+       "aplica tal cual"),
+    PT("Sem pausa para o limiar: alguns quadros (de um rig, de um vídeo 360 "
+       "ou não guardados à parte) não podem mudar de lado depois, por isso é "
+       "aplicado como está"),
+    IT("Nessuna pausa per la soglia: alcuni fotogrammi (di un rig, di un "
+       "video 360 o non messi da parte) non possono più cambiare lato, quindi"
+       " si applica così com’è"),
+    NL("Geen pauze voor de drempel: sommige beelden (van een rig, van een "
+       "360-video of niet apart gezet) kunnen achteraf niet van kant wisselen,"
+       " dus hij geldt zoals ingesteld"),
+    RU("Без паузы для порога: некоторые кадры (рига, видео 360 или не "
+       "отложенные) уже не могут сменить сторону, поэтому он применяется как "
+       "задан"),
+    TR("Eşik için duraklatılmıyor: bazı kareler (bir düzeneğin, bir 360 "
+       "videonun ya da ayrı tutulmayanlar) sonradan taraf değiştiremez, bu "
+       "yüzden ayarlandığı gibi uygulanır"));
+
 SS_MSG(photos_in_place_unsorted,
     EN("Photos read where they are stay unsorted: nothing of theirs is "
        "moved"),

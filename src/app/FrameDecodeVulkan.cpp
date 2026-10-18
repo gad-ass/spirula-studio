@@ -247,6 +247,8 @@ bool decode_lockstep_vulkan(const FrameExtractJob& o, const FrameExtractSinks& s
     const int keep = o.keep;
     PickRule rule{o.blur_reject, o.blur_neighbour, o.similar_bits};
     const bool judge = rule.on() || (bool)sinks.judged;
+    std::unique_ptr<EdgeMeter> meter;
+    if (rule.max_blur > 0.0f) meter = std::make_unique<EdgeMeter>();
     SelectClock clock{o.keep, o.skip, plan, 0};
     clock.span = clip_frames(o, pipe[0]->track().fps > 1.0 ? pipe[0]->track().fps : 30.0);
     int written = 0;
@@ -322,8 +324,9 @@ bool decode_lockstep_vulkan(const FrameExtractJob& o, const FrameExtractSinks& s
                 p.index = chosen.index;
                 if (imgs[0].channels == 3) {
                     const double t1 = nn::now_ms();
+                    // A packed rig is cut apart later: the whole picture is measured.
                     measure_pick(p, imgs[0].data.data(), imgs[0].width, imgs[0].height,
-                                 rule.max_blur > 0.0f);
+                                 meter.get(), pipe[0]->rgbDevice());
                     t.sharpness += nn::now_ms() - t1;
                 }
                 rule.judge(p);

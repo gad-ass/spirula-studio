@@ -108,6 +108,15 @@ void test_rule() {
     app::FramePick none;
     expect(gap.judge(none) == app::PickVerdict::Kept && none.blur < 0.0f && gap.widths.empty(),
            "a frame nothing could be measured on is kept, and teaches the rule nothing");
+
+    // A clip that opens in motion: the frames so far call the smear the lens.
+    const std::vector<float> opens{20, 20, 3, 3, 3, 3, 3, 3, 3, 3};
+    std::vector<app::FramePick> picks(opens.size());
+    for (size_t i = 0; i < opens.size(); i++) picks[i].width = opens[i];
+    expect(walk(app::PickRule{8.0f, true, 0}, opens) == "KKKKKKKKKK" &&
+               walk(app::whole_capture(app::PickRule{8.0f, true, 0}, picks), opens) ==
+                   "BBKKKKKKKK",
+           "a smeared opening: kept against the frames so far, left out against them all");
 }
 
 void test_similar() {
@@ -126,6 +135,8 @@ void test_similar() {
            "blurred and still: left out as similar, which does not use up the cap");
     expect(walk(app::PickRule{0.0f, true, 0}, {-1, -1}, {a, a}) == "KK",
            "0 bits: similarity is off");
+    expect(walk(rule, {-1, -1, -1}, {0, 0, 0}) == "KKK",
+           "a frame with no hash (none could be read) is like no other");
 }
 
 void test_hash() {
@@ -163,9 +174,10 @@ void test_edge_width() {
                app::edge_width_px(nullptr, W, H) < 0.0f,
            "edge width: no edges, under 64 px a side, or no pixels: not measured");
 
+    app::EdgeMeter meter;
     app::FramePick only_hash, both;
-    app::measure_pick(only_hash, squares(W, H, 1, false).data(), W, H, /*blur=*/false);
-    app::measure_pick(both, squares(W, H, 1, false).data(), W, H, /*blur=*/true);
+    app::measure_pick(only_hash, squares(W, H, 1, false).data(), W, H, nullptr);
+    app::measure_pick(both, squares(W, H, 1, false).data(), W, H, &meter);
     expect(only_hash.width < 0.0f && only_hash.hash != 0 && both.width == sharp,
            "the edge width is measured only where blur is being judged");
 
@@ -174,7 +186,7 @@ void test_edge_width() {
     std::string verdicts;
     for (int i = 0; i < 6; i++) {
         app::FramePick p;
-        app::measure_pick(p, squares(W, H, i == 4 ? 30 : 1, false).data(), W, H, true);
+        app::measure_pick(p, squares(W, H, i == 4 ? 30 : 1, false).data(), W, H, &meter);
         verdicts += "KBS"[(int)rule.judge(p)];
     }
     expect(verdicts == "KKKKBK", "measured and ruled on: the smeared frame goes, " + verdicts);

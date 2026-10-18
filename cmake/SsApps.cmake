@@ -149,9 +149,9 @@ if(SS_BUILD_SAM)
          ${SS_SRC}/app/FrameDecodeFfmpeg.cpp
          ${SS_SRC}/app/FfmpegVideo.cpp
          ${SS_SRC}/app/gui/Subprocess.cpp)
-    list(APPEND SS_TOOL_DEFS SS_TOOL_SAM=1)
+    list(APPEND SS_TOOL_DEFS SS_TOOL_SAM=1 SS_HAVE_BLUR_GPU=1)
     list(APPEND SS_TOOL_SOURCES ${SS_SRC}/app/cli/LicenseCli.cpp)
-    list(APPEND SS_TOOL_LIBS ss_sam)
+    list(APPEND SS_TOOL_LIBS ss_sam ss_blur)
     if(SS_ENABLE_PATENTED)
         list(APPEND SS_TOOL_SOURCES ${SS_SRC}/app/FrameDecodeVulkan.cpp)
         list(APPEND SS_TOOL_LIBS ss_video)
@@ -365,12 +365,12 @@ if(SS_SEPARATE_TOOLS)
                      ${SS_SRC}/app/cli/sam_extract.cpp ${SS_SRC}/app/FrameExtract.cpp
                      ${SS_SRC}/app/FrameDecodeFfmpeg.cpp ${SS_SRC}/app/FfmpegVideo.cpp
                      ${SS_SRC}/app/gui/Subprocess.cpp ${SS_SRC}/app/cli/LicenseCli.cpp)
-        set(_sam_lib ss_sam ss_license)
+        set(_sam_lib ss_sam ss_blur ss_license)
         if(SS_ENABLE_PATENTED)
             list(APPEND _sam_src ${SS_SRC}/app/FrameDecodeVulkan.cpp)
             list(APPEND _sam_lib ss_video)
         endif()
-        ss_tool_exe(spirula-sam "${_sam_src}" "SS_TOOL_SAM=1" "${_sam_lib}")
+        ss_tool_exe(spirula-sam "${_sam_src}" "SS_TOOL_SAM=1;SS_HAVE_BLUR_GPU=1" "${_sam_lib}")
     endif()
 endif()
 

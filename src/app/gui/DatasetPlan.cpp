@@ -628,7 +628,7 @@ MadeRule made_rule(const StepFields& fields) {
 // The screen's rule leaves out everything `made` did: every frame it could
 // keep is among those the dataset was made from, and has a camera.
 bool no_looser(const MadeRule& made, const PrepJob& job) {
-    if (job.similar_bits < made.similar) return false;
+    if (pick_rule(job).similar_bits < made.similar) return false;
     if (!made.blur) return true;
     return job.skip_blurry && job.blur_px <= made.px && (made.neighbour || !job.blur_neighbour);
 }
@@ -670,11 +670,10 @@ StepFields frames_fields(const PrepJob& job) {
     // the rule compares equal; by hand is its own value, since it is a pause.
     const auto rule = [&] {
         if (!blur_rule_applies(job)) return;
-        if (job.skip_blurry) {
-            add(f, "skip_blurry", "", job.blur_review ? "by hand" : "on");
-            add(f, "blur_px", "", num(job.blur_px));
-            add(f, "blur_neighbour", "", onoff(job.blur_neighbour));
-        }
+        if (!job.skip_blurry) return;
+        add(f, "skip_blurry", "", job.blur_review ? "by hand" : "on");
+        add(f, "blur_px", "", num(job.blur_px));
+        add(f, "blur_neighbour", "", onoff(job.blur_neighbour));
         if (job.similar_bits > 0) add(f, "similar_bits", "", num(job.similar_bits));
     };
     // Photos already gathered are kept whatever the import mode says, so a

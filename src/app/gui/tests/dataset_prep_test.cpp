@@ -29,6 +29,13 @@ namespace mk = gui::mask;
 
 namespace {
 
+// The blur rule at `px` (0 off), `by_hand` with the pause.
+void skip_blurry(gui::PrepJob& job, float px, bool by_hand = false) {
+    job.skip_blurry = px > 0.0f;
+    job.blur_px = px > 0.0f ? px : job.blur_px;
+    job.blur_review = by_hand;
+}
+
 int g_failures = 0;
 
 void check(bool ok, const std::string& what) {
@@ -352,7 +359,7 @@ void test_skipped_photos() {
         gui::PrepJob job;
         job.workspace = ws.string();
         job.photo_import = c.import;
-        gui::set_blur_mode(job, gui::kBlurStrict);
+        skip_blurry(job, 5.0f);
         job.keep_skipped = c.keep;
         gui::PrepInput in;
         in.path = photos.string();
@@ -383,7 +390,7 @@ void test_skipped_photos() {
         gui::PrepJob again = job;
         again.resume = true;
         again.make_frames = false;
-        gui::set_blur_mode(again, gui::kBlurKeep);
+        skip_blurry(again, 0.0f);
         gui::RunProgress prog2;
         check(run_prep(again, prog2, err) && files_in(ws / "images") == 6 &&
                   !fs::exists(ws / "images" / "p5.png", ec),
@@ -446,7 +453,7 @@ void test_sort_in_place() {
     sort.resume = true;
     sort.make_frames = false;
     sort.sort_frames = true;
-    gui::set_blur_mode(sort, gui::kBlurStrict);
+    skip_blurry(sort, 5.0f);
     std::error_code ec;
     check(run_prep(sort, prog, err) && files_in(ws / "images") == 6 &&
               files_in(ws / "images_skipped") == 2 && fs::exists(ws / "images_skipped" / "p2.png", ec),
@@ -514,7 +521,7 @@ void test_sort_rig_in_place() {
     sort.resume = true;
     sort.make_frames = false;
     sort.sort_frames = true;
-    gui::set_blur_mode(sort, gui::kBlurStrict);
+    skip_blurry(sort, 5.0f);
     gui::PickSheet sheet;
     std::error_code ec;
     // As a two-lens video leaves it: a frame the rule left out before the
@@ -556,6 +563,36 @@ void test_sort_rig_in_place() {
           "rig: eased in the review, both lenses' files come back and the whole frame stays");
 }
 
+// Photographs in folders of their own names are one sequence, not a rig: a
+// smeared one goes alone, and nothing is matched across folders by name.
+void test_sort_folders_not_rig() {
+    const fs::path root = scratch("sort_days");
+    const fs::path photos = root / "photos", ws = root / "dataset";
+    for (int i = 0; i < 6; i++) {
+        write_squares(photos / "day1" / ("a" + std::to_string(i) + ".png"), 1);
+        write_squares(photos / "day2" / ("b" + std::to_string(i) + ".png"), i == 3 ? 30 : 1);
+    }
+    gui::PrepJob job;
+    job.workspace = ws.string();
+    job.photo_import = gui::PhotoImport::Copy;
+    gui::PrepInput in;
+    in.path = photos.string();
+    job.inputs = {in};
+    gui::RunProgress prog;
+    std::string err;
+    check(run_prep(job, prog, err) && files_in(ws / "images") == 12,
+          "days: made with the rule off");
+    gui::PrepJob sort = job;
+    sort.resume = true;
+    sort.make_frames = false;
+    sort.sort_frames = true;
+    skip_blurry(sort, 5.0f);
+    std::error_code ec;
+    check(run_prep(sort, prog, err) && files_in(ws / "images") == 11 &&
+              fs::exists(ws / "images_skipped" / "day2" / "b3.png", ec),
+          "days: the one smeared photograph moves aside, alone");
+}
+
 int main() {
     test_bare_model_is_not_a_dataset();
     test_rerun_reapplies_corrections();
@@ -568,6 +605,7 @@ int main() {
     test_pick_sheet_discards();
     test_sort_in_place();
     test_sort_rig_in_place();
+    test_sort_folders_not_rig();
     std::printf("%s: %d failure(s)\n", SS_FILE, g_failures);
     return g_failures;
 }

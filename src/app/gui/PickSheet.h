@@ -51,8 +51,12 @@ public:
     // camera -- not the frames an extraction chose among.
     void set_in_place(size_t row, bool yes);
     bool in_place(size_t row) const;
-    // The rule walked again over `row`, each frame's verdict replaced and its
-    // file moved to the side it now belongs on. Returns the files moved.
+    // Every one of `row`'s frames has a file resort() can move: its folders are
+    // known and none was dropped or left unwritten.
+    bool movable(size_t row) const;
+    // The rule walked again over `row` against all its frames (whole_capture),
+    // each verdict replaced and its file moved to the side it now belongs on.
+    // Returns the files moved.
     int resort(size_t row, app::PickRule rule);
     // `row`'s left-out frames deleted from its skip folder, and the folders
     // that empties with them. Returns the files deleted.
@@ -64,6 +68,8 @@ public:
     // ---- consumer ----
     // Changes whenever reset() runs: a cache keyed by row and index is stale.
     uint64_t generation() const;
+    // Changes with anything the sheet holds, a verdict or a frame added.
+    uint64_t version() const;
     std::vector<std::string> names() const;
     std::vector<Pick> picks(size_t row) const;
     bool any() const;
@@ -84,7 +90,7 @@ private:
     mutable std::mutex _mu;
     std::vector<Row> _rows;
     std::vector<std::string> _names;
-    uint64_t _gen = 0;
+    uint64_t _gen = 0, _version = 0;
 };
 
 }  // namespace gui

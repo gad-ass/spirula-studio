@@ -19,6 +19,13 @@ using namespace gui;
 
 namespace {
 
+// The blur rule at `px` (0 off), `by_hand` with the pause.
+void skip_blurry(PrepJob& job, float px, bool by_hand = false) {
+    job.skip_blurry = px > 0.0f;
+    job.blur_px = px > 0.0f ? px : job.blur_px;
+    job.blur_review = by_hand;
+}
+
 int g_failures = 0;
 
 void expect(bool ok, const std::string& what) {
@@ -170,7 +177,7 @@ int main() {
     // ---- the blur rule and a video's frames ---------------------------------
     {
         SfmJob on = made, every = made, every_on = made;
-        set_blur_mode(on.prep, kBlurStandard);
+        skip_blurry(on.prep, 8.0f);
         expect(!(frames_fields(made.prep) == frames_fields(on.prep)),
                "video: a blur threshold is part of the frames");
         SfmJob still = on;
@@ -182,7 +189,7 @@ int main() {
         expect(!(frames_fields(on.prep) == frames_fields(alone.prep)),
                "video: and whether a skipped frame keeps a neighbour");
         every.prep.video_fps = every_on.prep.video_fps = 0.0f;
-        set_blur_mode(every_on.prep, kBlurStandard);
+        skip_blurry(every_on.prep, 8.0f);
         every_on.prep.similar_bits = 6;
         expect(frames_fields(every.prep) == frames_fields(every_on.prep),
                "video: every frame is every frame, so the rule is not part of those");
@@ -198,10 +205,10 @@ int main() {
         off.prep.inputs = {p};
         off.camera_model = "opencv";
         SfmJob on = off, hand = off, in_place = off;
-        set_blur_mode(on.prep, kBlurStandard);
-        set_blur_mode(hand.prep, kBlurManual);
+        skip_blurry(on.prep, 8.0f);
+        skip_blurry(hand.prep, 8.0f, true);
         hand.prep.blur_px = on.prep.blur_px;
-        set_blur_mode(in_place.prep, kBlurStandard);
+        skip_blurry(in_place.prep, 8.0f);
         in_place.prep.photo_import = PhotoImport::InPlace;
         expect(!(frames_fields(off.prep) == frames_fields(on.prep)),
                "photos: a blur threshold is part of the frames");
@@ -226,7 +233,7 @@ int main() {
         expect(same[Step::Frames].act == Act::Reuse && same[Step::Model].act == Act::Reuse,
                "photos: the same threshold keeps the frames and the reconstruction");
         SfmJob tighter = on;
-        set_blur_mode(tighter.prep, kBlurStrict);
+        skip_blurry(tighter.prep, 5.0f);
         const DatasetPlan t = plan(tighter);
         expect(t[Step::Frames].act == Act::Reuse && t[Step::Frames].sort &&
                    t[Step::Model].act == Act::Reuse && !t.ask(),
@@ -240,7 +247,7 @@ int main() {
                "the rule they were made with sorts again without making anything");
         fs::remove(pw / kSkippedListFile);
         SfmJob looser = on;
-        set_blur_mode(looser.prep, kBlurLight);
+        skip_blurry(looser.prep, 10.0f);
         const DatasetPlan q = plan(looser);
         expect(q[Step::Frames].act == Act::Redo && q[Step::Model].act == Act::Redo && q.ask(),
                "photos: a looser threshold wants frames the dataset never had: made again");
@@ -253,7 +260,7 @@ int main() {
     build(ws, made);
     {
         SfmJob blur = made;
-        set_blur_mode(blur.prep, kBlurStandard);
+        skip_blurry(blur.prep, 8.0f);
         const DatasetPlan b = plan(blur);
         expect(b[Step::Frames].act == Act::Reuse && b[Step::Frames].sort &&
                    b[Step::Masks].act == Act::Reuse && b[Step::Model].act == Act::Reuse &&
@@ -264,7 +271,7 @@ int main() {
             << "# " << blur_rule_text(blur.prep) << "\n00020.jpg\n";
         expect(!plan(blur)[Step::Frames].sort, "sorted by that rule already: nothing to do");
         SfmJob tighter = blur;
-        set_blur_mode(tighter.prep, kBlurStrict);
+        skip_blurry(tighter.prep, 5.0f);
         expect(plan(tighter)[Step::Frames].sort && plan(made)[Step::Frames].sort &&
                    plan(made)[Step::Model].act == Act::Reuse,
                "another threshold sorts again, and so does turning the rule off, "

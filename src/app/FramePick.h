@@ -38,6 +38,9 @@ struct PickRule {
     bool neighbour = true;
     // A frame must differ from the last one kept by this many bits of 64; 0 = off.
     int similar_bits = 0;
+    // The capture's own edge width (lens_width) when every frame is known
+    // before the first is ruled on; negative takes it from the frames so far.
+    float lens = -1.0f;
 
     int run = 0;
     bool seen = false;
@@ -46,31 +49,43 @@ struct PickRule {
 
     bool on() const { return max_blur > 0.0f || similar_bits > 0; }
 
-    // Bits `hash` differs from the last kept frame by; 64 before there is one.
+    // Bits `hash` differs from the last kept frame by; 64 before there is one,
+    // or for a frame with no hash (frame_dhash gives 0 to what it cannot read).
     int distance(uint64_t hash) const {
-        if (!seen) return 64;
+        if (!seen || hash == 0 || last == 0) return 64;
         int n = 0;
         for (uint64_t x = hash ^ last; x; x &= x - 1) n++;
         return n;
     }
 
-    // An edge width as blur: what is left once the lens's own share is taken
-    // off in quadrature -- the 10th percentile of the widths so far, plus 8%
-    // (of 379 frames shot at 1/384 s, 21 read over 8 px without it, 14 with).
-    float blur(float width) const {
-        if (width < 0.0f) return -1.0f;
-        std::vector<float> s(widths);
-        s.push_back(width);
+    // The width the lens alone leaves on an edge: the 10th percentile of the
+    // measured widths, plus 8% (of 379 frames shot at 1/384 s, 21 read over
+    // 8 px without it, 14 with). Negative when none was measured.
+    static float lens_width(std::vector<float> s) {
+        s.erase(std::remove_if(s.begin(), s.end(), [](float v) { return v < 0.0f; }), s.end());
+        if (s.empty()) return -1.0f;
         const size_t at = s.size() / 10;
         std::nth_element(s.begin(), s.begin() + at, s.end());
-        const float lens = 1.08f * s[at];
-        return std::sqrt(std::max(width * width - lens * lens, 0.0f));
+        return 1.08f * s[at];
+    }
+
+    // An edge width as blur: what is left once the lens's share is taken off
+    // in quadrature.
+    float blur(float width) const {
+        if (width < 0.0f) return -1.0f;
+        float base = lens;
+        if (base < 0.0f) {
+            std::vector<float> s(widths);
+            s.push_back(width);
+            base = lens_width(std::move(s));
+        }
+        return std::sqrt(std::max(width * width - base * base, 0.0f));
     }
 
     // Fills in `p.blur` and `p.verdict` from `p.width` and `p.hash`.
     PickVerdict judge(FramePick& p) {
         p.blur = blur(p.width);
-        if (p.width >= 0.0f) widths.push_back(p.width);
+        if (p.width >= 0.0f && lens < 0.0f) widths.push_back(p.width);
         p.verdict = PickVerdict::Kept;
         // A still camera is not a bad stretch: it does not count towards `run`.
         if (similar_bits > 0 && distance(p.hash) < similar_bits) {
@@ -86,6 +101,17 @@ struct PickRule {
         return p.verdict;
     }
 };
+
+// `rule` with its lens taken from every one of `picks` (FramePick or derived),
+// as a walk over all of them wants it.
+template <class Picks>
+PickRule whole_capture(PickRule rule, const Picks& picks) {
+    std::vector<float> w;
+    w.reserve(picks.size());
+    for (const auto& p : picks) w.push_back(p.width);
+    rule.lens = PickRule::lens_width(std::move(w));
+    return rule;
+}
 
 // A difference hash of `rgb` (w*h*3): 9x8 cells of mean luma, one bit for each
 // cell brighter than the one to its right. Cells are sampled on a lattice, not
@@ -114,11 +140,13 @@ inline uint64_t frame_dhash(const uint8_t* rgb, int w, int h) {
     return bits;
 }
 
-// What the rule reads off a frame's pixels. The edge width is the costly half
-// -- tens of milliseconds at 5K -- so only where blur is being judged.
-inline void measure_pick(FramePick& p, const uint8_t* rgb, int w, int h, bool blur) {
+// What the rule reads off a frame's pixels: the hash, and the edge width where
+// `meter` is given -- the costly half, so only where blur is being judged.
+// `device` is the same pixels on the meter's device (EdgeMeter::measure).
+inline void measure_pick(FramePick& p, const uint8_t* rgb, int w, int h, EdgeMeter* meter,
+                         uint64_t device = 0) {
     p.hash = frame_dhash(rgb, w, h);
-    if (blur) p.width = edge_width_px(rgb, w, h);
+    if (meter) p.width = meter->measure(rgb, w, h, device);
 }
 
 }  // namespace app

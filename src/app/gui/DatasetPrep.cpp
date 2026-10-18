@@ -1375,7 +1375,9 @@ bool DatasetPrep::run(const PrepJob& job_in, PrepResult& out, std::string& error
         _left_out.clear();
         _unbuilt.clear();
         _sorted = false;
-        _split_later = job.make_frames && job.review_frames && review_frames && _films.picks;
+        _streamed.assign(job.inputs.size(), false);
+        _split_later = job.make_frames && _films.picks &&
+                       ((job.review_frames && review_frames) || job.skip_blurry);
         for (size_t i = 0; i < job.inputs.size(); i++) {
             const PrepInput& in = job.inputs[i];
             Prepared& p = per[i];
@@ -1392,7 +1394,8 @@ bool DatasetPrep::run(const PrepJob& job_in, PrepResult& out, std::string& error
                        !judge_photos(job, in, p.images, error)) {
                 return false;
             }
-            if (job.sort_frames && !sort_frames(job, in, p.images, error)) return false;
+            if (job.sort_frames && !every_frame(job, in) && !sort_frames(job, in, p.images, error))
+                return false;
             int64_t produced = count_images(p.images);
             if (!in.is_video && !in.mask_dir.empty())
                 produced += count_images(p.masks);
@@ -1409,17 +1412,33 @@ bool DatasetPrep::run(const PrepJob& job_in, PrepResult& out, std::string& error
             out.per_folder_cameras = true;
     }
 
-    // The frames are out and nothing has been made from them: the one moment
-    // another threshold costs a rename rather than a second run.
-    if ((job.make_frames || job.sort_frames) && job.review_frames && review_frames &&
-        _films.picks && _films.picks->any()) {
+    // The frames are out and nothing is made from them yet: another threshold
+    // costs a rename now. Only where every frame has a file to move, or the
+    // record would name a rule the disk does not hold.
+    const bool picked = (job.make_frames || job.sort_frames) && _films.picks && _films.picks->any();
+    bool movable = picked;
+    for (size_t i = 0; movable && i < job.inputs.size(); i++)
+        movable = _films.picks->picks(i).empty() || _films.picks->movable(i);
+    const bool pause = picked && job.review_frames && review_frames && movable;
+    if (picked && job.review_frames && review_frames && !movable)
+        log(lmsg::review_not_movable.get(), /*detail=*/false);
+    // The built-in decoder rules on a frame as it goes, against the frames
+    // before it; once all are in, against all of them (app::whole_capture).
+    if (picked && !pause && job.skip_blurry) {
+        const app::PickRule rule = pick_rule(job);
+        int moved = 0;
+        for (size_t i = 0; i < job.inputs.size(); i++)
+            if (i < _streamed.size() && _streamed[i] && _films.picks->movable(i))
+                moved += _films.picks->resort(i, rule);
+        if (moved > 0) log(fmt(lmsg::frames_settled, {(long long)moved}), /*detail=*/false);
+    }
+    if (pause) {
         review_frames(job);
         if (_cancel.load()) {
             error = lmsg::err_cancelled.get();
             return false;
         }
-        const app::PickRule rule{job.skip_blurry ? job.blur_px : 0.0f, job.blur_neighbour,
-                                 job.similar_bits};
+        const app::PickRule rule = pick_rule(job);
         int moved = 0;
         std::vector<std::string>& listed = job.sort_frames ? _left_out : _unbuilt;
         listed.clear();
@@ -1430,18 +1449,16 @@ bool DatasetPrep::run(const PrepJob& job_in, PrepResult& out, std::string& error
                 listed.push_back((fs::path(job.inputs[i].subdir) / rel).generic_string());
         }
         if (moved > 0) log(fmt(lmsg::frames_resorted, {(long long)moved}), /*detail=*/false);
-        // Held only so that a frame could come back. Photographs moved in
-        // have no other copy and stay.
-        // ... and frames sorted where they lie stay, so the rule can be eased.
-        if (!job.keep_skipped && !job.sort_frames && job.photo_import != PhotoImport::Move) {
-            int gone = 0;
-            for (size_t i = 0; i < job.inputs.size(); i++)
-                gone += _films.picks->discard_skipped(i);
-            std::error_code left;
-            fs::remove(fs::path(job.workspace) / "images_skipped", left);
-            if (gone > 0)
-                log(fmt(lmsg::skipped_discarded, {(long long)gone}), /*detail=*/false);
-        }
+    }
+    // Held only so that a frame could come back. Photographs moved in have no
+    // other copy, and frames sorted where they lie stay so the rule can be eased.
+    if (picked && !job.keep_skipped && !job.sort_frames &&
+        job.photo_import != PhotoImport::Move) {
+        int gone = 0;
+        for (size_t i = 0; i < job.inputs.size(); i++) gone += _films.picks->discard_skipped(i);
+        std::error_code left;
+        fs::remove(fs::path(job.workspace) / "images_skipped", left);
+        if (gone > 0) log(fmt(lmsg::skipped_discarded, {(long long)gone}), /*detail=*/false);
     }
 
     if (_split_later) {
@@ -1720,9 +1737,10 @@ static bool builtin_job(const PrepJob& job, const PrepInput& in,
     fx.sync_tracks = job.sync_tracks;
     fx.adaptive = job.adaptive_fps && !every;
     fx.adaptive_range = job.adaptive_range;
-    fx.blur_reject = job.skip_blurry && !every ? job.blur_px : 0.0f;
-    fx.blur_neighbour = job.blur_neighbour;
-    fx.similar_bits = every ? 0 : job.similar_bits;
+    const app::PickRule rule = pick_rule(job);
+    fx.blur_reject = every ? 0.0f : rule.max_blur;
+    fx.blur_neighbour = rule.neighbour;
+    fx.similar_bits = every ? 0 : rule.similar_bits;
     fx.auto_rotate = job.auto_rotate;
     fx.lut = input_lut(job, in);
     fx.quality = 95;
@@ -1870,10 +1888,13 @@ bool DatasetPrep::extract_video_builtin(const PrepJob& job, const PrepInput& in,
     const fs::path skipped = under((fs::path(job.workspace) / "images_skipped").string(),
                                    in.subdir);
     remove_tree(skipped);
-    // Written only when asked for, or while a review can still bring one back.
-    const bool hold = single && (job.keep_skipped || job.review_frames);
+    // Written when asked for, or while a review or the closing pass in run()
+    // can still bring one back.
+    const bool hold = single && (job.keep_skipped || job.review_frames ||
+                                 (fx.blur_reject > 0.0f && _films.picks));
     if (hold) fx.skipped_dir = skipped.string();
     if (hold && _films.picks) _films.picks->set_dirs(row, images, skipped.string());
+    if (row < _streamed.size()) _streamed[row] = hold && fx.blur_reject > 0.0f && _films.picks;
     if (_films.picks && !every_frame(job, in))
         sinks.judged = [this, row, single, hold, skipped,
                         images](const app::FramePick& p, const nn::Image& im) {
@@ -2048,16 +2069,19 @@ bool DatasetPrep::extract_video_ffmpeg(const PrepJob& job, const PrepInput& in,
         so.adaptive = job.adaptive_fps && !every;
         so.range = job.adaptive_range;
         so.window = window;
-        so.blur_reject = job.skip_blurry && !every ? job.blur_px : 0.0f;
-        so.blur_neighbour = job.blur_neighbour;
-        so.similar_bits = every ? 0 : job.similar_bits;
+        const app::PickRule rule = pick_rule(job);
+        so.blur_reject = every ? 0.0f : rule.max_blur;
+        so.blur_neighbour = rule.neighbour;
+        so.similar_bits = every ? 0 : rule.similar_bits;
         fs::path skipped = under((ws / "images_skipped").string(), in.subdir);
         if (streams > 1) skipped /= "cam" + std::to_string(tr);
         remove_tree(skipped);
         if (job.keep_skipped || job.review_frames) so.skipped_dir = skipped.string();
-        if (_films.picks && !so.skipped_dir.empty())
+        // Each track picks and is ruled on alone here, so the view has the
+        // first's and a review cannot move the others' (PickSheet::movable).
+        if (_films.picks && !so.skipped_dir.empty() && streams == 1)
             _films.picks->set_dirs(input_index(job, in), out_dir.string(), so.skipped_dir);
-        if (_films.picks && !every)
+        if (_films.picks && !every && tr == 0)
             so.judged = [this, row = input_index(job, in)](
                             const app::FramePick& p, std::vector<uint8_t>&& jpeg,
                             const std::string& path) {
@@ -2222,9 +2246,10 @@ bool DatasetPrep::extract_360_ffmpeg(const PrepJob& job, const PrepInput& in,
     so.adaptive = job.adaptive_fps && !every;
     so.range = job.adaptive_range;
     so.window = window;
-    so.blur_reject = job.skip_blurry && !every ? job.blur_px : 0.0f;
-    so.blur_neighbour = job.blur_neighbour;
-    so.similar_bits = every ? 0 : job.similar_bits;
+    const app::PickRule rule = pick_rule(job);
+    so.blur_reject = every ? 0.0f : rule.max_blur;
+    so.blur_neighbour = rule.neighbour;
+    so.similar_bits = every ? 0 : rule.similar_bits;
     // No file to look at: what is kept here is a canvas the views are cut from.
     if (_films.picks && !every)
         so.judged = [this, row = input_index(job, in)](
@@ -2593,6 +2618,34 @@ struct GatherTally {
 
 }  // namespace
 
+// Camera folders under `images` that make a rig: two or more, each holding the
+// same file names (counting those moved to `skipped`), so a frame is one name
+// across them. Empty otherwise: photographs in day1/ and day2/ are one sequence.
+static std::vector<std::string> rig_folders(const fs::path& images, const fs::path& skipped) {
+    std::error_code ec;
+    std::vector<std::string> folders = camera_subfolders(images.string());
+    // Loose files in images/ beside the folders make it no rig; in skipped/
+    // they are a packed frame left out whole, before it was cut apart.
+    if (!folders.empty() && folders[0].empty()) return {};
+    for (const std::string& f : camera_subfolders(skipped.string()))
+        if (!f.empty() && std::find(folders.begin(), folders.end(), f) == folders.end())
+            folders.push_back(f);
+    std::sort(folders.begin(), folders.end());
+    if (folders.size() < 2) return {};
+    std::set<std::string> first;
+    for (size_t k = 0; k < folders.size(); k++) {
+        std::set<std::string> names;
+        for (const fs::path& root : {images, skipped})
+            for (fs::directory_iterator it(root / folders[k], ec), end; !ec && it != end;
+                 it.increment(ec))
+                if (it->is_regular_file(ec) && is_image_file(it->path()))
+                    names.insert(it->path().filename().string());
+        if (k == 0) first = std::move(names);
+        else if (names != first) return {};
+    }
+    return folders;
+}
+
 // The rule over photographs, or a sequence an editor exported: what
 // gather_photos put in images/ is the frames. Never over photos read where
 // they are, or a dataset's own images: nothing of the user's is moved.
@@ -2606,14 +2659,18 @@ bool DatasetPrep::judge_photos(const PrepJob& job, const PrepInput& in,
         for (std::string line; std::getline(list, line);) {
             while (!line.empty() && line.back() == '\r') line.pop_back();
             if (line.rfind("- ", 0) == 0) line.erase(0, 2);
-            const fs::path rel(line);
+            const fs::path rel = fs::path(line).lexically_normal();
             if (line.empty() || line[0] == '#') continue;
             if (rel.empty() || rel.is_absolute() || *rel.begin() == "..") continue;
+            // Never the only copy: a photograph moved in has none but the one aside.
+            if (job.photo_import == PhotoImport::Move &&
+                !fs::exists(fs::path(job.workspace) / "images_skipped" / rel, rec))
+                continue;
             fs::remove(fs::path(job.workspace) / "images" / rel, rec);
         }
         return true;
     }
-    if (!job.skip_blurry && job.similar_bits <= 0) return true;
+    if (!job.skip_blurry) return true;
     std::error_code ec;
     if (job.photo_import == PhotoImport::InPlace ||
         (fs::exists(images, ec) && fs::equivalent(in.path, images, ec) && !ec)) {
@@ -2621,7 +2678,7 @@ bool DatasetPrep::judge_photos(const PrepJob& job, const PrepInput& in,
         return true;
     }
     FrameSelectOptions so;
-    so.blur_reject = job.skip_blurry ? job.blur_px : 0.0f;
+    so.blur_reject = job.blur_px;
     so.blur_neighbour = job.blur_neighbour;
     so.similar_bits = job.similar_bits;
     // Without a folder for them the ones left out are deleted from images/,
@@ -2632,30 +2689,44 @@ bool DatasetPrep::judge_photos(const PrepJob& job, const PrepInput& in,
     const size_t row = input_index(job, in);
     if (_films.picks && !so.skipped_dir.empty())
         _films.picks->set_dirs(row, images, so.skipped_dir);
+    const std::vector<std::string> rig = rig_folders(
+        images, under((fs::path(job.workspace) / "images_skipped").string(), in.subdir));
     // A photograph left out may have no file in the dataset any more, but the
-    // one it was copied from is still where it was given.
-    so.judged = [this, row, images, skipped = so.skipped_dir, given = in.path,
+    // one it was copied from is still where it was given. A rig's other lenses
+    // go with the first, and are listed with it.
+    so.judged = [this, row, rig, images, skipped = so.skipped_dir, given = in.path,
                  sub = in.subdir](const app::FramePick& p, std::vector<uint8_t>&& jpeg,
                                   const std::string& path) {
         std::error_code at;
         std::string origin;
+        fs::path side = images, rel = fs::path(path).lexically_relative(images);
+        if (rel.empty() || *rel.begin() == "..") {
+            side = skipped;
+            rel = fs::path(path).lexically_relative(skipped);
+        }
+        std::vector<std::string> more;
+        for (size_t k = 1; k < rig.size(); k++) {
+            const fs::path other = side / rig[k] / rel.filename();
+            if (fs::exists(other, at)) more.push_back(other.string());
+        }
         if (p.verdict != app::PickVerdict::Kept) {
-            fs::path rel = fs::path(path).lexically_relative(images);
-            if (rel.empty() || *rel.begin() == "..")
-                rel = fs::path(path).lexically_relative(skipped);
             origin = photo_behind(given, rel);
             _unbuilt.push_back((fs::path(sub) / rel).generic_string());
+            for (size_t k = 1; k < rig.size(); k++)
+                _unbuilt.push_back((fs::path(sub) / rig[k] / rel.filename()).generic_string());
         }
         if (_films.picks)
             _films.picks->add(row, p, std::move(jpeg),
-                              fs::exists(path, at) ? path : std::string(), origin);
+                              fs::exists(path, at) ? path : std::string(), origin,
+                              std::move(more));
     };
     enter(Stage::Frames, lmsg::stage_judging_photos.get());
     so.scanning = [this](int64_t done, int64_t total) {
         if (total > 0) _prog->fraction(Stage::Frames, (float)done / (float)total);
     };
-    if (judge_image_folder(images, so, [this](const std::string& l) { log(l, false); },
-                           _cancel) < 0) {
+    const auto say = [this](const std::string& l) { log(l, false); };
+    if ((rig.empty() ? judge_image_folder(images, so, say, _cancel)
+                     : judge_image_sets(images, rig, so, say, _cancel)) < 0) {
         error = lmsg::err_cancelled.get();
         return false;
     }
@@ -2687,18 +2758,23 @@ static std::set<std::string> model_image_names(const fs::path& workspace) {
 bool DatasetPrep::sort_frames(const PrepJob& job, const PrepInput& in,
                               const std::string& images, std::string& error) {
     std::error_code ec;
+    if (job.photo_import == PhotoImport::InPlace ||
+        (fs::exists(images, ec) && fs::equivalent(in.path, images, ec) && !ec)) {
+        log(lmsg::photos_in_place_unsorted.get(), /*detail=*/false);
+        return true;
+    }
     const fs::path skipped =
         under((fs::path(job.workspace) / "images_skipped").string(), in.subdir);
-    // Camera folders hold one lens each, and a frame is the files of one name
-    // across them: listed from both sides, since a folder may be all aside.
-    std::vector<std::string> folders = camera_subfolders(images);
-    for (const std::string& f : camera_subfolders(skipped.string()))
-        if (std::find(folders.begin(), folders.end(), f) == folders.end()) folders.push_back(f);
-    std::sort(folders.begin(), folders.end());
-    // Loose files beside camera folders are not a camera: a packed two-lens
-    // frame left out before it was cut apart lies in images_skipped/ whole.
-    if (folders.size() > 1 && folders[0].empty()) folders.erase(folders.begin());
-    if (folders.empty()) return true;
+    // A rig's lens folders hold one file a frame each, by the same name, and a
+    // frame goes or stays whole: a video's lenses, or photographs that look so.
+    std::vector<std::string> folders;
+    if (in.is_video) {
+        for (const std::string& f : lens_dirs(job, in))
+            if (fs::is_directory(fs::path(images) / f, ec) || fs::is_directory(skipped / f, ec))
+                folders.push_back(f);
+    } else {
+        folders = rig_folders(images, skipped);
+    }
     // Back come the frames an earlier sort moved aside, and any with a camera.
     // One the rule left out as the frames were made is in the same folder and
     // has neither: it stays there.
@@ -2711,36 +2787,61 @@ bool DatasetPrep::sort_frames(const PrepJob& job, const PrepInput& in,
             if (!line.empty() && line[0] != '#' && line.rfind("- ", 0) != 0) aside.insert(line);
         }
     }
-    for (const std::string& f : folders)
-        for (fs::directory_iterator it(skipped / f, ec), end; !ec && it != end; it.increment(ec)) {
-            const std::string name =
-                (fs::path(in.subdir) / f / it->path().filename()).generic_string();
-            if (it->is_regular_file(ec) && (built.empty() || built.count(name) || aside.count(name)))
-                fs::rename(it->path(), fs::path(images) / f / it->path().filename(), ec);
+    const auto bring_back = [&](const fs::path& from, const fs::path& rel) {
+        const std::string name = (fs::path(in.subdir) / rel).generic_string();
+        if (built.empty() || built.count(name) || aside.count(name))
+            fs::rename(from, fs::path(images) / rel, ec);
+    };
+    if (folders.empty()) {
+        std::vector<fs::path> files;
+        for (fs::recursive_directory_iterator it(skipped, ec), end; !ec && it != end;
+             it.increment(ec))
+            if (it->is_regular_file(ec)) files.push_back(it->path());
+        for (const fs::path& f : files) {
+            const fs::path rel = f.lexically_relative(skipped);
+            fs::create_directories((fs::path(images) / rel).parent_path(), ec);
+            bring_back(f, rel);
         }
+    } else {
+        // Loose files beside the lens folders are a packed frame left out
+        // before it was cut apart: never built, so never brought back.
+        for (const std::string& f : folders)
+            for (fs::directory_iterator it(skipped / f, ec), end; !ec && it != end;
+                 it.increment(ec))
+                if (it->is_regular_file(ec))
+                    bring_back(it->path(), fs::path(f) / it->path().filename());
+    }
     _sorted = true;
+    if (!job.skip_blurry) return true;
     FrameSelectOptions so;
-    so.blur_reject = job.skip_blurry ? job.blur_px : 0.0f;
+    so.blur_reject = job.blur_px;
     so.blur_neighbour = job.blur_neighbour;
     so.similar_bits = job.similar_bits;
-    if (so.blur_reject <= 0.0f && so.similar_bits <= 0) return true;
     so.skipped_dir = skipped.string();
     const size_t row = input_index(job, in);
     if (_films.picks) _films.picks->set_dirs(row, images, so.skipped_dir);
     if (_films.picks) _films.picks->set_in_place(row, true);
-    so.judged = [this, row, folders, sub = in.subdir](const app::FramePick& p,
-                                                      std::vector<uint8_t>&& jpeg,
-                                                      const std::string& path) {
+    so.judged = [this, row, folders, skipped, images, sub = in.subdir](const app::FramePick& p,
+                                                               std::vector<uint8_t>&& jpeg,
+                                                               const std::string& path) {
         const fs::path at(path);
-        // Every lens's file is listed: the list is what brings them back.
-        for (size_t k = 0; k < folders.size() && p.verdict != app::PickVerdict::Kept; k++)
-            _left_out.push_back((fs::path(sub) / folders[k] / at.filename()).generic_string());
-        // The other lenses' files, beside this one under their own folders.
         std::vector<std::string> more;
-        const fs::path side = folders[0].empty() ? at.parent_path()
-                                                 : at.parent_path().parent_path();
-        for (size_t k = 1; k < folders.size(); k++)
-            more.push_back((side / folders[k] / at.filename()).string());
+        if (folders.empty()) {
+            if (p.verdict != app::PickVerdict::Kept)
+                _left_out.push_back((fs::path(sub) / at.lexically_relative(skipped)).generic_string());
+        } else {
+            // Every lens's file is listed: the list is what brings them back.
+            for (size_t k = 0; k < folders.size() && p.verdict != app::PickVerdict::Kept; k++)
+                _left_out.push_back((fs::path(sub) / folders[k] / at.filename()).generic_string());
+            // The other lenses' files, on the same side under their own folders.
+            const fs::path side =
+                at.lexically_relative(skipped).empty() ||
+                        *at.lexically_relative(skipped).begin() == ".."
+                    ? fs::path(images)
+                    : skipped;
+            for (size_t k = 1; k < folders.size(); k++)
+                more.push_back((side / folders[k] / at.filename()).string());
+        }
         if (_films.picks)
             _films.picks->add(row, p, std::move(jpeg), path, std::string(), std::move(more));
     };
@@ -2748,8 +2849,10 @@ bool DatasetPrep::sort_frames(const PrepJob& job, const PrepInput& in,
     so.scanning = [this](int64_t done, int64_t total) {
         if (total > 0) _prog->fraction(Stage::Frames, (float)done / (float)total);
     };
-    if (judge_image_sets(images, folders, so, [this](const std::string& l) { log(l, false); },
-                         _cancel) < 0) {
+    const auto say = [this](const std::string& l) { log(l, false); };
+    const int kept = folders.empty() ? judge_image_folder(images, so, say, _cancel)
+                                     : judge_image_sets(images, folders, so, say, _cancel);
+    if (kept < 0) {
         error = lmsg::err_cancelled.get();
         return false;
     }
